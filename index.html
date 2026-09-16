@@ -88,7 +88,7 @@
         .hidden { display: none !important; }
 
         /* フォーム系要素 */
-        input[type="text"], input[type="number"], textarea, select { width: 100%; padding: 10px 12px; margin: 6px 0 14px 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; transition: border-color 0.2s; background: #f9fafb; }
+        input[type="text"], input[type="password"], input[type="number"], textarea, select { width: 100%; padding: 10px 12px; margin: 6px 0 14px 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; transition: border-color 0.2s; background: #f9fafb; }
         input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
         label { font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; text-transform: uppercase; }
 
@@ -126,7 +126,7 @@
     <div class="sidebar" id="app-sidebar">
         <div class="sidebar-header">
             <h2>Y.M</h2>
-            <button id="dev-mode-btn" class="menu-btn btn-warning hidden" style="width:auto; padding:4px 8px; font-size:11px;">開発者モード</button>
+            <button id="dev-mode-btn" class="menu-btn btn-warning" style="width:auto; padding:4px 8px; font-size:11px;">開発者モード</button>
         </div>
 
         <div class="user-info">
@@ -205,7 +205,7 @@
                 <button class="dev-tab-btn" data-tab="dev-tab-upgrade">3. 全体通知設定</button>
                 <button class="dev-tab-btn" data-tab="dev-tab-requests">4. 要望管理</button>
                 <button class="dev-tab-btn" data-tab="dev-tab-stamps">5. スタンプ管理</button>
-                <button class="dev-tab-btn" data-tab="dev-tab-system-upgrade">6. アップグレード</button>
+                <button class="dev-tab-btn" data-tab="dev-tab-conversations">6. 会話一覧</button>
             </div>
 
             <div id="dev-tab-users" class="dev-tab-content">
@@ -271,24 +271,25 @@
                 <div id="dev-stamps-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:15px; margin-top:10px;"></div>
             </div>
 
-            <!-- 6. アップグレード項目 -->
-            <div id="dev-tab-system-upgrade" class="dev-tab-content hidden">
-                <h3>🚀 システム即時アップグレード＆リアルタイム同期</h3>
-                <p style="font-size:12px; color:#666; margin-bottom:10px;">ページをリロードせずに、システム設定の更新やバックアップデータの流入・同期を実行できます。</p>
-                
-                <div style="background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #e0e0e0; margin-top:10px;">
-                    <label>システムバージョン情報</label>
-                    <input type="text" id="system-version-input" placeholder="例: v2.0.0">
-
-                    <label>システムアップグレードデータ (JSON形式)</label>
-                    <textarea id="system-upgrade-json" rows="6" placeholder="新しいDB定義データまたは差分JSONを入力..."></textarea>
-
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button class="menu-btn btn-success" id="btn-apply-upgrade">即時アップグレード適用＆全端末同期</button>
-                        <button class="menu-btn btn-export-upgrade" id="btn-export-upgrade" style="width:auto;">現在のシステム構成を出力</button>
-                    </div>
-                </div>
+            <!-- 6. 会話一覧項目 -->
+            <div id="dev-tab-conversations" class="dev-tab-content hidden">
+                <h3>💬 全使用者の会話一覧</h3>
+                <p style="font-size:12px; color:#666; margin-bottom:10px;">全ユーザー間で送信されたすべてのチャットメッセージおよび公式チャットのやり取りを一覧で表示します。</p>
+                <div id="dev-conversations-container" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- 開発者モード認証モーダル -->
+    <div id="dev-auth-modal" class="modal hidden">
+        <div class="modal-box">
+            <h3>🔒 開発者モード認証</h3>
+            <label>ユーザーネーム</label>
+            <input type="text" id="dev-auth-username" placeholder="ユーザーネームを入力">
+            <label>パスワード</label>
+            <input type="password" id="dev-auth-password" placeholder="パスワードを入力">
+            <button class="menu-btn btn-success" id="btn-submit-dev-auth">ログイン</button>
+            <button class="menu-btn btn-danger closeModalBtn" style="margin-top:5px;">キャンセル</button>
         </div>
     </div>
 
@@ -379,9 +380,6 @@
         // 即時関数(IIFE)でスコープを密閉。window上の不正コンソール操作(db改ざん等)を防ぎます。
         (function() {
             'use strict';
-
-            // ★【重要】管理者端末判定 (この端末が管理者の場合 true)
-            const IS_THIS_DEVICE_ADMIN = true;
 
             // 端末ID管理
             let deviceId = localStorage.getItem('YM_DEVICE_ID');
@@ -475,11 +473,10 @@
             }
 
             if (!db.users[activeUserId]) {
-                const defaultName = IS_THIS_DEVICE_ADMIN ? '管理者 (この端末)' : 'User-' + activeUserId.slice(-4);
                 db.users[activeUserId] = {
-                    name: defaultName,
+                    name: 'User-' + activeUserId.slice(-4),
                     icon: 'https://via.placeholder.com/40',
-                    coins: IS_THIS_DEVICE_ADMIN ? 9999 : 100,
+                    coins: 100,
                     chatBg: '#87CEEB',
                     tabTitle: 'Y.M',
                     tabIcon: 'https://via.placeholder.com/192/007bff/ffffff?text=YM',
@@ -560,6 +557,7 @@
                     db.messages.push(data.message);
                     saveData();
                     if (activeChatTarget === data.message.from) renderChat();
+                    if (isDevMode) renderDevPanel();
                 } else if (data.type === 'OFFICIAL_CHAT') {
                     if (!db.officialChatLogs[data.userKey]) db.officialChatLogs[data.userKey] = [];
                     db.officialChatLogs[data.userKey].push(data.log);
@@ -611,12 +609,7 @@
                     document.getElementById('blocked-screen').classList.add('hidden');
                 }
 
-                const devBtn = document.getElementById('dev-mode-btn');
-                if (IS_THIS_DEVICE_ADMIN) {
-                    devBtn.classList.remove('hidden');
-                } else {
-                    devBtn.classList.add('hidden');
-                }
+                document.getElementById('dev-mode-btn').classList.remove('hidden');
 
                 document.getElementById('my-name').innerText = userObj.name;
                 document.getElementById('my-avatar').src = userObj.icon || 'https://via.placeholder.com/40';
@@ -789,7 +782,7 @@
                 const grid = document.getElementById('stamp-market-grid');
                 grid.innerHTML = '';
                 db.stamps.forEach(s => {
-                    const isOwner = (s.seller === activeUserId) || IS_THIS_DEVICE_ADMIN;
+                    const isOwner = (s.seller === activeUserId) || isDevMode;
                     const sellerName = db.users[s.seller] ? db.users[s.seller].name : '不明';
 
                     const card = document.createElement('div');
@@ -838,21 +831,16 @@
             }
 
             // -------------------------------------------------------------
-            // 開発者パネル機能（管理権限厳格化）
+            // 開発者パネル機能
             // -------------------------------------------------------------
 
             function toggleDevMode() {
-                if (!IS_THIS_DEVICE_ADMIN) {
-                    alert('この端末には管理者権限が与えられていません。');
-                    return;
-                }
-
-                isDevMode = !isDevMode;
-                if (isDevMode) {
-                    document.getElementById('app-sidebar').classList.add('hidden');
-                    switchPage('developer-view');
-                    renderDevPanel();
+                if (!isDevMode) {
+                    document.getElementById('dev-auth-username').value = '';
+                    document.getElementById('dev-auth-password').value = '';
+                    showModal('dev-auth-modal');
                 } else {
+                    isDevMode = false;
                     document.getElementById('app-sidebar').classList.remove('hidden');
                     switchPage('home-view');
                     renderApp();
@@ -860,7 +848,7 @@
             }
 
             function renderDevPanel() {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
 
                 const tbody = document.getElementById('dev-user-list');
                 const targetSelect = document.getElementById('distribute-target');
@@ -956,17 +944,77 @@
                     }
                 }
 
+                // 6. 会話一覧描画
+                renderDevConversations();
+
                 const annInput = document.getElementById('dev-announcement-text');
                 if (annInput) annInput.value = db.systemAnnouncement || '';
+            }
 
-                // 6. アップグレードタブ用レンダー設定
-                const sysVerInput = document.getElementById('system-version-input');
-                if (sysVerInput) sysVerInput.value = db.systemVersion || '1.0.0';
+            function renderDevConversations() {
+                const convContainer = document.getElementById('dev-conversations-container');
+                if (!convContainer) return;
+                convContainer.innerHTML = '';
+
+                let hasMessages = false;
+
+                // 1. 一般ユーザー間チャットメッセージ
+                if (db.messages && db.messages.length > 0) {
+                    db.messages.forEach(m => {
+                        hasMessages = true;
+                        const fromName = db.users[m.from] ? db.users[m.from].name : m.from;
+                        const toName = db.users[m.to] ? db.users[m.to].name : m.to;
+
+                        let contentHtml = escapeHTML(m.text);
+                        if (m.type === 'stamp') {
+                            contentHtml = `<img src="${escapeHTML(m.text)}" style="width:70px; height:70px; object-fit:cover; border-radius:4px;">`;
+                        }
+
+                        const card = document.createElement('div');
+                        card.style.cssText = 'background:#f8f9fa; padding:10px 15px; border-radius:8px; border:1px solid #e0e0e0; font-size:13px;';
+                        card.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <div><strong>💬 一般チャット:</strong> <span style="color:#4f46e5; font-weight:bold;">${escapeHTML(fromName)}</span> ➔ <span style="color:#06b6d4; font-weight:bold;">${escapeHTML(toName)}</span></div>
+                            </div>
+                            <div style="padding:6px; background:#ffffff; border-radius:4px; border:1px solid #eee;">${contentHtml}</div>`;
+                        convContainer.appendChild(card);
+                    });
+                }
+
+                // 2. 公式チャットログ
+                if (db.officialChatLogs) {
+                    Object.keys(db.officialChatLogs).forEach(uKey => {
+                        const logs = db.officialChatLogs[uKey] || [];
+                        logs.forEach(m => {
+                            hasMessages = true;
+                            const uName = m.userName || (db.users[uKey] ? db.users[uKey].name : uKey);
+                            const isDev = m.sender === 'DEV';
+
+                            let contentHtml = escapeHTML(m.text);
+                            if (m.type === 'stamp') {
+                                contentHtml = `<img src="${escapeHTML(m.text)}" style="width:70px; height:70px; object-fit:cover; border-radius:4px;">`;
+                            }
+
+                            const card = document.createElement('div');
+                            card.style.cssText = `background:${isDev ? '#ecfdf5' : '#fef3c7'}; padding:10px 15px; border-radius:8px; border:1px solid #e0e0e0; font-size:13px;`;
+                            card.innerHTML = `
+                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                    <div><strong>📢 公式チャット:</strong> <span style="font-weight:bold;">${isDev ? '開発チーム ➔ ' + escapeHTML(uName) : escapeHTML(uName) + ' ➔ 開発チーム'}</span></div>
+                                    <span style="color:#888; font-size:11px;">⏰ ${escapeHTML(m.time || '')}</span>
+                                </div>
+                                <div style="padding:6px; background:#ffffff; border-radius:4px; border:1px solid #eee;">${contentHtml}</div>`;
+                            convContainer.appendChild(card);
+                        });
+                    });
+                }
+
+                if (!hasMessages) {
+                    convContainer.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">まだ会話ログが存在しません。</div>';
+                }
             }
 
             function toggleBlockUser(userKey) {
-                if (!IS_THIS_DEVICE_ADMIN) return;
-                if (userKey === activeUserId) return alert('管理者端末自身をブロックすることはできません。');
+                if (!isDevMode) return;
                 const user = db.users[userKey];
                 if (!user) return;
 
@@ -979,8 +1027,7 @@
             }
 
             function deleteUserAccount(userKey) {
-                if (!IS_THIS_DEVICE_ADMIN) return;
-                if (userKey === activeUserId) return alert('管理者端末自身を削除することはできません。');
+                if (!isDevMode) return;
                 if (!confirm(`端末アカウント (${userKey}) を削除しますか？`)) return;
 
                 delete db.users[userKey];
@@ -999,7 +1046,7 @@
             }
 
             function deleteRequestComment(userKey, index) {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
                 if (!confirm('このコメントを削除しますか？')) return;
                 if (db.officialChatLogs[userKey] && db.officialChatLogs[userKey][index]) {
                     db.officialChatLogs[userKey].splice(index, 1);
@@ -1011,7 +1058,7 @@
             }
 
             function deleteDevStamp(stampId) {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
                 if (!confirm('このスタンプを出品一覧から直接削除しますか？')) return;
                 db.stamps = db.stamps.filter(s => s.id !== stampId);
                 saveData();
@@ -1022,7 +1069,7 @@
             }
 
             function openDirectMsgModal(userKey) {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
                 selectedDirectUser = userKey;
                 const targetName = db.users[userKey] ? db.users[userKey].name : userKey;
                 document.getElementById('direct-msg-target-label').innerText = `宛先: ${targetName} (${userKey})`;
@@ -1049,6 +1096,22 @@
 
             document.getElementById('dev-mode-btn').onclick = toggleDevMode;
             document.getElementById('btn-exit-dev').onclick = toggleDevMode;
+
+            // 開発者認証送信処理
+            document.getElementById('btn-submit-dev-auth').onclick = () => {
+                const userVal = document.getElementById('dev-auth-username').value.trim();
+                const passVal = document.getElementById('dev-auth-password').value.trim();
+
+                if (userVal === 'YM' && passVal === 'yamanesaiki') {
+                    hideModal('dev-auth-modal');
+                    isDevMode = true;
+                    document.getElementById('app-sidebar').classList.add('hidden');
+                    switchPage('developer-view');
+                    renderDevPanel();
+                } else {
+                    alert('ユーザーネームまたはパスワードが正しくありません。');
+                }
+            };
 
             document.getElementById('btn-open-shop').onclick = () => switchPage('stamp-shop-view');
             document.getElementById('btn-open-add-friend').onclick = () => showModal('add-friend-modal');
@@ -1085,7 +1148,7 @@
             };
 
             document.getElementById('btn-exec-distribute').onclick = async () => {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
                 const target = document.getElementById('distribute-target').value;
                 const type = document.getElementById('distribute-type').value;
 
@@ -1115,66 +1178,13 @@
             };
 
             document.getElementById('btn-save-announcement').onclick = () => {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
                 const text = document.getElementById('dev-announcement-text').value;
                 db.systemAnnouncement = text;
                 saveData();
                 broadcastData({ type: 'SYNC_DB_FULL', db });
                 renderApp();
                 alert('全体アナウンスを更新しました。');
-            };
-
-            // 6. アップグレードイベント実行（即時＆リロードなし同期）
-            document.getElementById('btn-apply-upgrade').onclick = () => {
-                if (!IS_THIS_DEVICE_ADMIN) return;
-                const verText = document.getElementById('system-version-input').value.trim();
-                const jsonText = document.getElementById('system-upgrade-json').value.trim();
-
-                let summaryDetails = [];
-
-                if (verText) {
-                    db.systemVersion = verText;
-                    summaryDetails.push(`・バージョン: ${verText}`);
-                }
-
-                if (jsonText) {
-                    try {
-                        const parsedData = JSON.parse(jsonText);
-                        db = Object.assign({}, db, parsedData);
-                        summaryDetails.push(`・同期データ: ${Object.keys(parsedData).length}件の項目を更新`);
-                    } catch (err) {
-                        return alert('JSONフォーマットが正しくありません: ' + err.message);
-                    }
-                }
-
-                // アップグレード要約メッセージを作成し、公式アカウントログへ送信
-                if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
-                
-                const summaryText = `🚀【システムアップグレード完了通知】\n` +
-                    `システム更新が適用されました。\n` +
-                    `-------------------\n` +
-                    (summaryDetails.length > 0 ? summaryDetails.join('\n') : '・軽微なシステム調整を適用');
-
-                const logObj = {
-                    sender: 'DEV',
-                    text: summaryText,
-                    time: new Date().toLocaleTimeString()
-                };
-
-                db.officialChatLogs[activeUserId].push(logObj);
-
-                saveData();
-                broadcastData({ type: 'OFFICIAL_CHAT', userKey: activeUserId, log: logObj });
-                broadcastData({ type: 'SYNC_DB_FULL', db });
-                renderDevPanel();
-                renderOfficialChat();
-                renderApp();
-                alert('即時アップグレードが適用され、要約が公式アカウントへ送信されました！');
-            };
-
-            document.getElementById('btn-export-upgrade').onclick = () => {
-                if (!IS_THIS_DEVICE_ADMIN) return;
-                document.getElementById('system-upgrade-json').value = JSON.stringify(db, null, 2);
             };
 
             document.getElementById('btn-save-settings').onclick = async () => {
@@ -1263,7 +1273,7 @@
             };
 
             document.getElementById('btn-send-direct-msg').onclick = () => {
-                if (!IS_THIS_DEVICE_ADMIN) return;
+                if (!isDevMode) return;
                 const msg = document.getElementById('direct-msg-text').value.trim();
                 if (!msg || !selectedDirectUser) return;
 
