@@ -172,8 +172,12 @@
                 </div>
             </div>
             <div class="chat-messages" id="chat-messages"></div>
-            <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
+            <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                 <button class="menu-btn" style="width:auto; background:#ffc107; color:#000; font-size:18px; padding:6px 12px;" id="btn-chat-stamp">🎨</button>
+                <!-- キャンバスアイコンの右隣にカメラアイコンを追加 -->
+                <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-chat-camera-call" title="音声通話を開始/終了">📷</button>
+                <button class="menu-btn" style="width:auto; background:#6c757d; font-size:18px; padding:6px 12px;" id="btn-chat-file" title="ファイルを選択してアップロード">📁</button>
+                <input type="file" id="chat-file-input" class="hidden">
                 <input type="text" id="chat-input" placeholder="メッセージを入力...">
                 <button class="menu-btn" style="width:auto;" id="btn-chat-send">送信</button>
             </div>
@@ -186,8 +190,12 @@
                 <button class="menu-btn btn-danger" style="width:auto; padding:5px 10px;" id="btn-close-official">閉じる</button>
             </div>
             <div class="chat-messages" id="official-chat-messages"></div>
-            <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
+            <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                 <button class="menu-btn" style="width:auto; background:#ffc107; color:#000; font-size:18px; padding:6px 12px;" id="btn-official-stamp">🎨</button>
+                <!-- キャンバスアイコンの右隣にカメラアイコンを追加 -->
+                <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-official-camera-call" title="グループ通話画面を開く">📷</button>
+                <button class="menu-btn" style="width:auto; background:#6c757d; font-size:18px; padding:6px 12px;" id="btn-official-file" title="ファイルを選択してアップロード">📁</button>
+                <input type="file" id="official-file-input" class="hidden">
                 <input type="text" id="official-chat-input" placeholder="要望やお問い合わせを入力...">
                 <button class="menu-btn btn-success" style="width:auto;" id="btn-official-send">送信</button>
             </div>
@@ -1265,6 +1273,75 @@
                 } else {
                     stopAllCalls();
                 }
+            };
+
+            // カメラアイコン「📷」ボタンの通話イベントハンドラ
+            document.getElementById('btn-chat-camera-call').onclick = () => {
+                if (!activeChatTarget) return alert('通話する友達を選択してください。');
+                if (mediaCalls[activeChatTarget]) {
+                    cleanupCall(activeChatTarget);
+                } else {
+                    startCallToPeer(activeChatTarget);
+                }
+            };
+
+            document.getElementById('btn-official-camera-call').onclick = () => {
+                showModal('group-call-modal');
+            };
+
+            // -------------------------------------------------------------
+            // ファイルアップロード機能（一般チャット／公式チャット）
+            // -------------------------------------------------------------
+            document.getElementById('btn-chat-file').onclick = () => {
+                document.getElementById('chat-file-input').click();
+            };
+
+            document.getElementById('chat-file-input').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.type.startsWith('image/')) {
+                    const compressed = await compressImageFile(file, 300, 0.7);
+                    if (compressed) sendMessage('stamp', compressed);
+                } else {
+                    sendMessage('text', `📁 [ファイル] ${file.name}`);
+                }
+                e.target.value = '';
+            };
+
+            document.getElementById('btn-official-file').onclick = () => {
+                document.getElementById('official-file-input').click();
+            };
+
+            document.getElementById('official-file-input').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                let content = `📁 [ファイル] ${file.name}`;
+                let messageType = 'text';
+
+                if (file.type.startsWith('image/')) {
+                    const compressed = await compressImageFile(file, 300, 0.7);
+                    if (compressed) {
+                        content = compressed;
+                        messageType = 'stamp';
+                    }
+                }
+
+                if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
+                const logObj = {
+                    sender: 'USER',
+                    userName: db.users[activeUserId].name,
+                    text: content,
+                    type: messageType,
+                    time: new Date().toLocaleTimeString()
+                };
+
+                db.officialChatLogs[activeUserId].push(logObj);
+                saveData();
+                broadcastData({ type: 'OFFICIAL_CHAT', userKey: activeUserId, log: logObj });
+                renderOfficialChat();
+                e.target.value = '';
             };
 
             document.getElementById('btn-start-group-call').onclick = () => {
