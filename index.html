@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="app-title">Y.M (Secure & Enhanced Edition)</title>
+    <title id="app-title">Y.M (Group & Call Enhanced Edition)</title>
     <link id="app-favicon" rel="icon" href="https://via.placeholder.com/192/007bff/ffffff?text=YM">
     <!-- PeerJS CDN: P2P通信ライブラリ -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -45,7 +45,7 @@
         .user-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #e5e7eb; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .coin-badge { background: #fef3c7; color: #d97706; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; display: inline-block; margin-top: 4px; border: 1px solid #fde68a; }
 
-        /* ボタンデザインの統一 */
+        /* ボタンデザイン */
         .menu-btn { width: 100%; padding: 10px 14px; margin-bottom: 8px; background: var(--primary); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .menu-btn:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         .menu-btn:active { transform: translateY(0); }
@@ -56,18 +56,18 @@
         .btn-success { background: var(--success) !important; }
         .btn-success:hover { background: #059669 !important; }
 
-        .section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 20px 0 10px 0; }
+        .section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 15px 0 8px 0; }
         
-        /* 友達リスト */
+        /* リスト */
         .friend-list { overflow-y: auto; flex: 1; padding-right: 4px; }
         .friend-list::-webkit-scrollbar { width: 4px; }
         .friend-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
         .friend-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: var(--radius-md); margin-bottom: 6px; background: #fff; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; }
         .friend-item:hover { background: #f9fafb; border-color: var(--primary); transform: translateX(2px); }
         .official-account { background: #ecfdf5; border-color: #a7f3d0; }
-        .official-account:hover { background: #d1fae5; border-color: var(--success); }
+        .group-item { background: #f0f9ff; border-color: #bae6fd; }
 
-        /* メインコンテンツエリア */
+        /* メインエリア */
         .main-content { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: var(--bg-main); }
         .card { background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border-color); }
 
@@ -78,22 +78,23 @@
         .msg-me { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
         .msg-other { align-self: flex-start; background: #ffffff; color: var(--text-main); border-bottom-left-radius: 2px; border: 1px solid var(--border-color); }
         .msg-dev { align-self: flex-start; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; border-bottom-left-radius: 2px; }
+        .msg-sender { font-size: 11px; font-weight: bold; margin-bottom: 2px; color: var(--text-muted); }
         .stamp-msg { background: transparent !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
         .stamp-msg img { width: 120px; height: 120px; object-fit: cover; border-radius: var(--radius-md); box-shadow: var(--shadow); }
         .file-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(255,255,255,0.2); border-radius: var(--radius-sm); color: inherit; text-decoration: none; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
         .msg-other .file-link { background: #f3f4f6; }
 
-        /* 通話状態バー */
+        /* 通話ステータスバー */
         .call-status-bar { background: var(--success); color: white; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 0.9; } 50% { opacity: 1; } 100% { opacity: 0.9; } }
 
-        /* モーダル表示 */
+        /* モーダル */
         .modal { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.2s ease; }
         .modal-box { background: white; padding: 28px; border-radius: var(--radius-lg); width: 480px; max-width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); }
         .modal-box h3 { font-size: 18px; margin-bottom: 16px; font-weight: 700; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
         .hidden { display: none !important; }
 
-        /* フォーム系要素 */
+        /* フォーム */
         input[type="text"], input[type="password"], input[type="number"], textarea, select { width: 100%; padding: 10px 12px; margin: 6px 0 14px 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; transition: border-color 0.2s; background: #f9fafb; }
         input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
         label { font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; text-transform: uppercase; }
@@ -106,29 +107,23 @@
         .dev-panel table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 12px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); }
         .dev-panel th, .dev-panel td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-color); }
         .dev-panel th { background-color: #f9fafb; font-weight: 700; color: var(--text-muted); }
-        .dev-panel tr:last-child td { border-bottom: none; }
+        
+        .announcement-banner { background: #fffbeb; color: #b45309; padding: 12px 16px; border-radius: var(--radius-md); margin-bottom: 15px; border: 1px solid #fef3c7; font-size: 14px; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 8px; cursor: pointer; text-transform: none; }
+        .checkbox-label input { width: auto; margin: 0; }
 
-        /* お知らせアナウンス */
-        .announcement-banner { background: #fffbeb; color: #b45309; padding: 12px 16px; border-radius: var(--radius-md); margin-bottom: 15px; border: 1px solid #fef3c7; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
 
-    <!-- お知らせ案内バナー -->
     <div id="system-announcement-container"></div>
 
-    <!-- ブロック画面 -->
     <div id="blocked-screen" class="hidden" style="position:fixed; inset:0; background:#fff; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999;">
         <h1 style="color:#dc3545; font-size:32px; margin-bottom:10px;">🚫 アクセスが制限されています</h1>
         <p style="color:#666;">この端末は管理者によって利用が停止されました。</p>
     </div>
 
-    <!-- 音声再生用コンテナ -->
     <div id="audio-container" style="display:none;"></div>
 
     <!-- サイドバー -->
@@ -148,10 +143,10 @@
 
         <button class="menu-btn" style="background:#28a745;" id="btn-open-shop">🎨 スタンプショップ</button>
         <button class="menu-btn" style="background:#17a2b8;" id="btn-open-add-friend">🔑 合言葉で友達追加</button>
-        <button class="menu-btn" style="background:#6f42c1;" id="btn-open-settings">⚙️ 設定 (表示/アイコン)</button>
-        <button class="menu-btn btn-success" id="btn-open-group-call">📞 グループ音声通話を開始/参加</button>
+        <button class="menu-btn" style="background:#6f42c1;" id="btn-open-create-group">👥 グループを作成</button>
+        <button class="menu-btn" style="background:#6c757d;" id="btn-open-settings">⚙️ 設定 (表示/アイコン)</button>
 
-        <div class="section-title">友達リスト</div>
+        <div class="section-title">トーク・グループ一覧</div>
         <div class="friend-list">
             <div id="dynamic-friends"></div>
         </div>
@@ -161,30 +156,37 @@
         <!-- ホーム画面 -->
         <div id="home-view" class="page-view card">
             <h1>Y.M へようこそ</h1>
-            <p style="margin-top:10px; color:#666;">左側のメニューから友達とのチャットやスタンプの売買が可能です。</p>
+            <p style="margin-top:10px; color:#666;">左側のメニューから友達とのチャット、グループ会話、スタンプの売買が可能です。</p>
             <div style="margin-top:15px; background:#e9ecef; padding:10px; border-radius:6px; font-size:12px;">
                 🌐 <strong>通信ステータス (P2P リアルタイム同期中):</strong><br>
                 自端末のPeerID: <span id="my-peer-id" style="font-weight:bold; color:#007bff;">接続準備中...</span>
             </div>
         </div>
 
-        <!-- 一般友達チャット画面 -->
+        <!-- チャット画面（1対1 / グループ共通） -->
         <div id="chat-view" class="page-view chat-box hidden">
             <div id="call-active-indicator" class="call-status-bar hidden">
-                <span>🎙️ 通話接続中...</span>
+                <span id="call-status-text">🎙️ 通話接続中...</span>
                 <button class="menu-btn btn-danger" style="width:auto; padding:2px 8px; font-size:11px; margin-bottom:0;" id="btn-bar-end-call">通話終了</button>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h3 id="chat-target-name" style="color:white;">チャット</h3>
-                <div style="display:flex; gap:8px;">
+                <div>
+                    <h3 id="chat-target-name" style="color:white; display:inline-block;">チャット</h3>
+                    <span id="group-member-count" style="color:#d1fae5; font-size:12px; margin-left:8px;"></span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button class="menu-btn" style="width:auto; padding:5px 10px; background:#0284c7; font-size:12px;" id="btn-group-manage">⚙️ 管理</button>
+                    <!-- 1対1用通話ボタン -->
                     <button class="menu-btn btn-success" style="width:auto; padding:5px 12px;" id="btn-start-call">📞 通話</button>
+                    <!-- グループ用全員発信ボタン -->
+                    <button class="menu-btn btn-success hidden" style="width:auto; padding:5px 12px; background:#10b981;" id="btn-start-group-call">📢 全員へ発信</button>
                     <button class="menu-btn btn-danger hidden" style="width:auto; padding:5px 12px;" id="btn-end-call">📵 切断</button>
                 </div>
             </div>
             <div class="chat-messages" id="chat-messages"></div>
             <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                 <button class="menu-btn" style="width:auto; background:#ffc107; color:#000; font-size:18px; padding:6px 12px;" id="btn-chat-stamp">🎨</button>
-                <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-chat-camera-call" title="音声通話を開始/終了">📷</button>
+                <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-chat-camera-call" title="通話を開始/終了">📷</button>
                 <button class="menu-btn" style="width:auto; background:#6c757d; font-size:18px; padding:6px 12px;" id="btn-chat-file" title="ファイルを選択してアップロード">📁</button>
                 <input type="file" id="chat-file-input" class="hidden">
                 <input type="text" id="chat-input" placeholder="メッセージを入力...">
@@ -192,7 +194,7 @@
             </div>
         </div>
 
-        <!-- 公式アップグレードアカウントチャット -->
+        <!-- 公式チャット -->
         <div id="official-chat-view" class="page-view chat-box hidden">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 style="color:white;">📢 アップグレード (公式開発チーム)</h3>
@@ -201,7 +203,6 @@
             <div class="chat-messages" id="official-chat-messages"></div>
             <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                 <button class="menu-btn" style="width:auto; background:#ffc107; color:#000; font-size:18px; padding:6px 12px;" id="btn-official-stamp">🎨</button>
-                <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-official-camera-call" title="グループ通話画面を開く">📷</button>
                 <button class="menu-btn" style="width:auto; background:#6c757d; font-size:18px; padding:6px 12px;" id="btn-official-file" title="ファイルを選択してアップロード">📁</button>
                 <input type="file" id="official-file-input" class="hidden">
                 <input type="text" id="official-chat-input" placeholder="要望やお問い合わせを入力...">
@@ -209,7 +210,7 @@
             </div>
         </div>
 
-        <!-- スタンプショップ画面 -->
+        <!-- スタンプショップ -->
         <div id="stamp-shop-view" class="page-view card hidden">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h2>🎨 スタンプショップ</h2>
@@ -235,13 +236,13 @@
             </div>
 
             <div id="dev-tab-users" class="dev-tab-content">
-                <h3>登録端末・アカウント管理</h3>
+                <h3>登録端末・アカウント・リアルタイム接続管理</h3>
                 <table>
                     <thead>
                         <tr>
                             <th>ユーザー名 / 端末ID</th>
                             <th>使用時間</th>
-                            <th>保有コイン</th>
+                            <th>接続中のユーザー (Peer)</th>
                             <th>状態</th>
                             <th>操作</th>
                         </tr>
@@ -281,7 +282,6 @@
 
             <div id="dev-tab-upgrade" class="dev-tab-content hidden">
                 <h3>📢 全体アナウンス・一斉通知</h3>
-                <p style="font-size:12px; color:#666; margin-bottom:10px;">ユーザー画面上部に全端末へ安全なテキストアナウンスを表示します（XSS防止対応）。</p>
                 <textarea id="dev-announcement-text" rows="4" placeholder="全体への重要なお知らせを入力..."></textarea>
                 <button class="menu-btn" id="btn-save-announcement">全体通知を更新・配信</button>
             </div>
@@ -292,20 +292,18 @@
             </div>
 
             <div id="dev-tab-stamps" class="dev-tab-content hidden">
-                <h3>🎨 出品スタンプ全件管理 (管理者権限)</h3>
-                <p style="font-size:12px; color:#666; margin-bottom:10px;">出品者に関わらず、すべてのスタンプを直接「削除」できます。</p>
+                <h3>🎨 出品スタンプ全件管理</h3>
                 <div id="dev-stamps-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:15px; margin-top:10px;"></div>
             </div>
 
             <div id="dev-tab-conversations" class="dev-tab-content hidden">
                 <h3>💬 全使用者の会話一覧</h3>
-                <p style="font-size:12px; color:#666; margin-bottom:10px;">全ユーザー間で送信されたすべてのチャットメッセージおよび公式チャットのやり取りを一覧で表示します。</p>
                 <div id="dev-conversations-container" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
             </div>
         </div>
     </div>
 
-    <!-- 開発者モード認証モーダル -->
+    <!-- モーダル群 -->
     <div id="dev-auth-modal" class="modal hidden">
         <div class="modal-box">
             <h3>🔒 開発者モード認証</h3>
@@ -318,25 +316,66 @@
         </div>
     </div>
 
-    <!-- モーダル群 -->
+    <div id="create-group-modal" class="modal hidden">
+        <div class="modal-box">
+            <h3>👥 複数人グループを作成</h3>
+            <label>グループ名</label>
+            <input type="text" id="group-name-input" placeholder="例: なかよしグループ">
+            
+            <label>参加メンバーを選択</label>
+            <div id="group-member-checkboxes" style="max-height:150px; overflow-y:auto; border:1px solid #ccc; padding:8px; border-radius:6px; margin-bottom:12px; background:#fafafa;"></div>
+
+            <button class="menu-btn btn-success" id="btn-submit-create-group">グループを作成する</button>
+            <button class="menu-btn btn-danger closeModalBtn" style="margin-top:5px;">キャンセル</button>
+        </div>
+    </div>
+
+    <div id="group-manage-modal" class="modal hidden">
+        <div class="modal-box">
+            <h3>⚙️ グループ管理・招待</h3>
+            <p id="manage-group-name-title" style="font-weight:bold; margin-bottom:10px;"></p>
+
+            <label>メンバーを追加招待</label>
+            <div id="group-invite-checkboxes" style="max-height:120px; overflow-y:auto; border:1px solid #ccc; padding:8px; border-radius:6px; margin-bottom:12px; background:#fafafa;"></div>
+            <button class="menu-btn btn-success" id="btn-submit-group-invite">選択したメンバーを追加</button>
+
+            <hr style="margin:15px 0;">
+            <button class="menu-btn btn-danger" id="btn-leave-group">このグループから退出する</button>
+            <button class="menu-btn closeModalBtn" style="margin-top:8px; background:#6c757d;">閉じる</button>
+        </div>
+    </div>
+
+    <div id="admin-force-connect-modal" class="modal hidden">
+        <div class="modal-box">
+            <h3>🔗 管理者 P2P勝手接続パネル</h3>
+            <p style="font-size:12px; color:#666; margin-bottom:10px;">選択した端末間を裏で強制接続（PeerJS通信の確立）させます。</p>
+            <label>接続元 (Target A)</label>
+            <select id="force-conn-a"></select>
+            <label>接続先 (Target B)</label>
+            <select id="force-conn-b"></select>
+            <button class="menu-btn btn-warning" id="btn-exec-force-connect">強制的につなげる</button>
+            <button class="menu-btn btn-danger closeModalBtn" style="margin-top:5px;">閉じる</button>
+        </div>
+    </div>
+
     <div id="account-settings-modal" class="modal hidden">
         <div class="modal-box">
             <h3>⚙️ 表示・カスタマイズ設定</h3>
             <label>表示ユーザー名</label>
             <input type="text" id="setting-username">
 
-            <label>アイコン画像 (自動圧縮して保存)</label>
+            <label>アイコン画像 (自動圧縮)</label>
             <input type="file" id="setting-icon-file" accept="image/*">
-            <label>または アイコン画像URL</label>
+            <label>または アイコンURL</label>
             <input type="text" id="setting-icon-url">
 
             <label>タブ名 (ページタイトル)</label>
-            <input type="text" id="setting-tab-title" placeholder="例: Y.M - マイページ">
+            <input type="text" id="setting-tab-title">
 
-            <label>タブのアイコン (自動圧縮して保存)</label>
+            <label>タブアイコン (自動圧縮)</label>
             <input type="file" id="setting-tab-icon-file" accept="image/*">
             <label>または タブアイコンURL</label>
-            <input type="text" id="setting-tab-icon" placeholder="例: https://.../favicon.ico">
+            <input type="text" id="setting-tab-icon">
 
             <label>チャット背景色</label>
             <input type="color" id="setting-chat-bg" value="#87CEEB" style="height:40px; padding:2px;">
@@ -359,7 +398,7 @@
     <div id="add-friend-modal" class="modal hidden">
         <div class="modal-box">
             <h3>🔑 他端末との接続・追加</h3>
-            <label>1. あなたのPeerID (接続相手に教えてください)</label>
+            <label>1. あなたのPeerID</label>
             <input type="text" id="my-peer-id-input" readonly style="background:#eee;">
 
             <label>2. 相手のPeerIDを入力して直接追加</label>
@@ -382,7 +421,7 @@
             <h3>🎨 スタンプ出品</h3>
             <label>スタンプ名</label>
             <input type="text" id="stamp-title">
-            <label>画像ファイルを選択 (自動圧縮保存)</label>
+            <label>画像ファイルを選択</label>
             <input type="file" id="stamp-file-input" accept="image/*">
             <label>または画像URL</label>
             <input type="text" id="stamp-img-url">
@@ -401,22 +440,10 @@
         </div>
     </div>
 
-    <!-- グループ通話モーダル -->
-    <div id="group-call-modal" class="modal hidden">
-        <div class="modal-box">
-            <h3>🎙️ グループ音声通話</h3>
-            <p style="font-size:12px; color:#666; margin-bottom:10px;">接続中の友達全員と音声通話を接続します。</p>
-            <button class="menu-btn btn-success" id="btn-start-group-call">全員へ発信 / 接続</button>
-            <button class="menu-btn btn-danger" id="btn-end-group-call" style="margin-top:5px;">通話から退出 / 終了</button>
-            <button class="menu-btn closeModalBtn" style="margin-top:10px; background:#6c757d;">閉じる</button>
-        </div>
-    </div>
-
     <script>
         (function() {
             'use strict';
 
-            // 端末ID管理
             let deviceId = localStorage.getItem('YM_DEVICE_ID');
             if (!deviceId) {
                 deviceId = 'ym_user_' + Math.random().toString(36).substring(2, 9);
@@ -424,20 +451,21 @@
             }
             const activeUserId = deviceId;
 
-            // P2P/内部状態変数
             let peer = null;
             const peerConnections = {};
             let isDevMode = false;
+            
+            // チャット対象: 友達ID または group_xxxx
             let activeChatTarget = null;
             let selectedDirectUser = null;
             let currentStampTarget = 'friend';
 
-            // 音声通話用変数
+            // 音声通話管理
             let localStream = null;
             const mediaCalls = {};
 
             // -------------------------------------------------------------
-            // 音声通話ヘルパー関数
+            // 通話管理
             // -------------------------------------------------------------
             async function getAudioStream() {
                 if (localStream) return localStream;
@@ -515,25 +543,32 @@
             }
 
             function toggleCallUI(inCall) {
+                const isGroup = activeChatTarget && activeChatTarget.startsWith('group_');
                 const btnStart = document.getElementById('btn-start-call');
+                const btnStartGroup = document.getElementById('btn-start-group-call');
                 const btnEnd = document.getElementById('btn-end-call');
                 const indicator = document.getElementById('call-active-indicator');
                 
-                if (btnStart && btnEnd) {
-                    if (inCall) {
+                if (inCall) {
+                    btnStart.classList.add('hidden');
+                    btnStartGroup.classList.add('hidden');
+                    btnEnd.classList.remove('hidden');
+                    if (indicator) indicator.classList.remove('hidden');
+                } else {
+                    if (isGroup) {
                         btnStart.classList.add('hidden');
-                        btnEnd.classList.remove('hidden');
-                        if (indicator) indicator.classList.remove('hidden');
+                        btnStartGroup.classList.remove('hidden');
                     } else {
                         btnStart.classList.remove('hidden');
-                        btnEnd.classList.add('hidden');
-                        if (indicator) indicator.classList.add('hidden');
+                        btnStartGroup.classList.add('hidden');
                     }
+                    btnEnd.classList.add('hidden');
+                    if (indicator) indicator.classList.add('hidden');
                 }
             }
 
             // -------------------------------------------------------------
-            // セキュリティ & ユーティリティ機能
+            // DB & ユーティリティ
             // -------------------------------------------------------------
             function escapeHTML(str) {
                 if (typeof str !== 'string') return str;
@@ -551,19 +586,16 @@
                         const img = new Image();
                         img.onload = () => {
                             const canvas = document.createElement('canvas');
-                            let width = img.width;
-                            let height = img.height;
+                            let width = img.width, height = img.height;
 
                             if (width > maxWidth) {
                                 height = Math.round((height * maxWidth) / width);
                                 width = maxWidth;
                             }
 
-                            canvas.width = width;
-                            canvas.height = height;
+                            canvas.width = width; canvas.height = height;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
-
                             resolve(canvas.toDataURL('image/jpeg', quality));
                         };
                         img.onerror = () => resolve(null);
@@ -574,7 +606,6 @@
                 });
             }
 
-            // 一般ファイルをBase64文字列に変換（ファイル送受信の強化）
             function readFileAsDataURL(file) {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
@@ -584,24 +615,16 @@
                 });
             }
 
-            document.addEventListener('contextmenu', e => e.preventDefault());
-            document.addEventListener('keydown', e => {
-                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'U')) {
-                    e.preventDefault();
-                }
-            });
-
-            // DB管理
             function loadAppDatabase() {
                 const rawData = localStorage.getItem('YM_DB');
                 const defaultDb = {
                     users: {},
                     friends: {},
+                    groups: {}, // { group_id: { id, name, members: [] } }
                     messages: [],
                     stamps: [],
                     officialChatLogs: {},
-                    systemAnnouncement: '',
-                    systemVersion: '1.1.0'
+                    systemAnnouncement: ''
                 };
                 return rawData ? JSON.parse(rawData) : defaultDb;
             }
@@ -612,7 +635,6 @@
                 try {
                     localStorage.setItem('YM_DB', JSON.stringify(db));
                 } catch (e) {
-                    console.warn("Storage quota exceeded. Cleaning up old message logs...");
                     if (db.messages.length > 50) db.messages.shift();
                 }
             }
@@ -634,7 +656,7 @@
             }
 
             // -------------------------------------------------------------
-            // PeerJS P2P 通信エンジン
+            // PeerJS P2P 通信
             // -------------------------------------------------------------
             function initPeer() {
                 peer = new Peer(activeUserId);
@@ -660,10 +682,14 @@
                         userKey: activeUserId,
                         userData: db.users[activeUserId]
                     });
+                    if (isDevMode) renderDevPanel();
                 });
 
                 conn.on('data', (data) => handleIncomingPeerData(data, conn.peer));
-                conn.on('close', () => delete peerConnections[conn.peer]);
+                conn.on('close', () => {
+                    delete peerConnections[conn.peer];
+                    if (isDevMode) renderDevPanel();
+                });
             }
 
             function connectToRemotePeer(remoteId) {
@@ -692,7 +718,7 @@
                 } else if (data.type === 'CHAT_MSG') {
                     db.messages.push(data.message);
                     saveData();
-                    if (activeChatTarget === data.message.from) renderChat();
+                    if (activeChatTarget === data.message.to || activeChatTarget === data.message.from) renderChat();
                     if (isDevMode) renderDevPanel();
                 } else if (data.type === 'OFFICIAL_CHAT') {
                     if (!db.officialChatLogs[data.userKey]) db.officialChatLogs[data.userKey] = [];
@@ -709,11 +735,16 @@
                         renderOfficialChat();
                         if (isDevMode) renderDevPanel();
                     }
+                } else if (data.type === 'ADMIN_FORCE_CONNECT') {
+                    // 管理者からの命令で別端末へ接続
+                    if (data.targetPeer && data.targetPeer !== activeUserId) {
+                        connectToRemotePeer(data.targetPeer);
+                    }
                 }
             }
 
             // -------------------------------------------------------------
-            // UIレンダー & ロジック
+            // UI & ロジック
             // -------------------------------------------------------------
             function formatUsageTime(seconds) {
                 if (!seconds) return '0分';
@@ -743,8 +774,6 @@
                     document.getElementById('blocked-screen').classList.add('hidden');
                 }
 
-                document.getElementById('dev-mode-btn').classList.remove('hidden');
-
                 document.getElementById('my-name').innerText = userObj.name;
                 document.getElementById('my-avatar').src = userObj.icon || 'https://via.placeholder.com/40';
                 document.getElementById('my-coins').innerText = userObj.coins;
@@ -765,15 +794,11 @@
                     el.style.backgroundColor = customBg;
                 });
 
-                document.getElementById('setting-username').value = userObj.name;
-                document.getElementById('setting-icon-url').value = userObj.icon || '';
-                document.getElementById('setting-tab-title').value = userObj.tabTitle || 'Y.M';
-                document.getElementById('setting-tab-icon').value = userObj.tabIcon || '';
-                document.getElementById('setting-chat-bg').value = customBg;
-
+                // 友達・グループリストの描画
                 const friendContainer = document.getElementById('dynamic-friends');
                 friendContainer.innerHTML = '';
 
+                // 1. 公式アカウント
                 const officialItem = document.createElement('div');
                 officialItem.className = 'friend-item official-account';
                 officialItem.innerHTML = `
@@ -787,15 +812,37 @@
                 officialItem.onclick = () => switchPage('official-chat-view');
                 friendContainer.appendChild(officialItem);
 
+                // 2. グループ一覧
+                if (!db.groups) db.groups = {};
+                Object.keys(db.groups).forEach(gId => {
+                    const group = db.groups[gId];
+                    if (group.members && group.members.includes(activeUserId)) {
+                        const item = document.createElement('div');
+                        item.className = 'friend-item group-item';
+                        item.innerHTML = `
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px;">👥</span>
+                                <div>
+                                    <strong>${escapeHTML(group.name)}</strong>
+                                    <div style="font-size:10px; color:#666;">${group.members.length}人参加中</div>
+                                </div>
+                            </div>`;
+                        item.onclick = () => openChat(gId);
+                        friendContainer.appendChild(item);
+                    }
+                });
+
+                // 3. 友達一覧 (1対1)
                 (db.friends[activeUserId] || []).forEach(fKey => {
                     const friendName = db.users[fKey] ? db.users[fKey].name : fKey;
                     const item = document.createElement('div');
                     item.className = 'friend-item';
-                    item.innerHTML = `<div>${escapeHTML(friendName)}</div>`;
+                    item.innerHTML = `<div>👤 ${escapeHTML(friendName)}</div>`;
                     item.onclick = () => openChat(fKey);
                     friendContainer.appendChild(item);
                 });
 
+                // マイスタンプ更新
                 const myStampsArea = document.getElementById('my-stamp-list');
                 myStampsArea.innerHTML = '';
                 const myStamps = userObj.myStamps || [];
@@ -815,11 +862,33 @@
 
             function openChat(targetKey) {
                 activeChatTarget = targetKey;
-                connectToRemotePeer(targetKey);
                 switchPage('chat-view');
-                const targetName = db.users[targetKey] ? db.users[targetKey].name : targetKey;
-                document.getElementById('chat-target-name').innerText = `${targetName} とのチャット`;
-                toggleCallUI(!!mediaCalls[targetKey]);
+
+                const isGroup = targetKey.startsWith('group_');
+                const btnManage = document.getElementById('btn-group-manage');
+                const memberCountEl = document.getElementById('group-member-count');
+
+                if (isGroup) {
+                    const group = db.groups[targetKey];
+                    document.getElementById('chat-target-name').innerText = `👥 ${group ? group.name : 'グループ'}`;
+                    memberCountEl.innerText = group ? `(${group.members.length}人)` : '';
+                    btnManage.classList.remove('hidden');
+
+                    // グループメンバー全員と接続確保
+                    if (group) {
+                        group.members.forEach(mId => {
+                            if (mId !== activeUserId) connectToRemotePeer(mId);
+                        });
+                    }
+                } else {
+                    const targetName = db.users[targetKey] ? db.users[targetKey].name : targetKey;
+                    document.getElementById('chat-target-name').innerText = `👤 ${targetName} とのチャット`;
+                    memberCountEl.innerText = '';
+                    btnManage.classList.add('hidden');
+                    connectToRemotePeer(targetKey);
+                }
+
+                toggleCallUI(!!mediaCalls[targetKey] || (isGroup && Object.keys(mediaCalls).length > 0));
                 renderChat();
             }
 
@@ -834,7 +903,8 @@
                     text, 
                     type,
                     fileData: filePayload ? filePayload.data : null,
-                    fileName: filePayload ? filePayload.name : null
+                    fileName: filePayload ? filePayload.name : null,
+                    timestamp: Date.now()
                 };
 
                 db.messages.push(msgObj);
@@ -848,13 +918,26 @@
             function renderChat() {
                 const container = document.getElementById('chat-messages');
                 container.innerHTML = '';
-                const msgs = db.messages.filter(m => (m.from === activeUserId && m.to === activeChatTarget) || (m.from === activeChatTarget && m.to === activeUserId));
+                const isGroup = activeChatTarget && activeChatTarget.startsWith('group_');
+
+                const msgs = db.messages.filter(m => {
+                    if (isGroup) return m.to === activeChatTarget;
+                    return (m.from === activeUserId && m.to === activeChatTarget) || (m.from === activeChatTarget && m.to === activeUserId);
+                });
 
                 msgs.forEach(m => {
                     const isMe = m.from === activeUserId;
                     const div = document.createElement('div');
                     div.className = `msg ${isMe ? 'msg-me' : 'msg-other'}`;
                     
+                    if (isGroup && !isMe) {
+                        const senderName = db.users[m.from] ? db.users[m.from].name : m.from;
+                        const senderHeader = document.createElement('div');
+                        senderHeader.className = 'msg-sender';
+                        senderHeader.innerText = senderName;
+                        div.appendChild(senderHeader);
+                    }
+
                     if (m.type === 'stamp') {
                         div.classList.add('stamp-msg');
                         const img = document.createElement('img');
@@ -868,7 +951,9 @@
                         a.innerHTML = `💾 ${escapeHTML(m.fileName || 'ダウンロード')}`;
                         div.appendChild(a);
                     } else {
-                        div.textContent = m.text;
+                        const textSpan = document.createElement('span');
+                        textSpan.textContent = m.text;
+                        div.appendChild(textSpan);
                     }
                     container.appendChild(div);
                 });
@@ -986,7 +1071,125 @@
             }
 
             // -------------------------------------------------------------
-            // 開発者パネル機能
+            // グループ作成・管理機能
+            // -------------------------------------------------------------
+            function openCreateGroupModal() {
+                const container = document.getElementById('group-member-checkboxes');
+                container.innerHTML = '';
+                const myFriends = db.friends[activeUserId] || [];
+
+                if (myFriends.length === 0) {
+                    container.innerHTML = '<div style="font-size:12px; color:#666;">友達が登録されていません。先に友達を追加してください。</div>';
+                } else {
+                    myFriends.forEach(fId => {
+                        const name = db.users[fId] ? db.users[fId].name : fId;
+                        const lbl = document.createElement('label');
+                        lbl.className = 'checkbox-label';
+                        lbl.innerHTML = `<input type="checkbox" value="${fId}"> ${escapeHTML(name)} (${escapeHTML(fId)})`;
+                        container.appendChild(lbl);
+                    });
+                }
+                document.getElementById('group-name-input').value = '';
+                showModal('create-group-modal');
+            }
+
+            function createGroup() {
+                const groupName = document.getElementById('group-name-input').value.trim();
+                if (!groupName) return alert('グループ名を入力してください。');
+
+                const checkboxes = document.querySelectorAll('#group-member-checkboxes input[type="checkbox"]:checked');
+                const selectedMembers = [activeUserId];
+                checkboxes.forEach(cb => selectedMembers.push(cb.value));
+
+                if (selectedMembers.length < 2) return alert('グループには少なくとも1人以上の友達を選択してください。');
+
+                const groupId = 'group_' + Date.now();
+                if (!db.groups) db.groups = {};
+                db.groups[groupId] = {
+                    id: groupId,
+                    name: groupName,
+                    members: selectedMembers
+                };
+
+                saveData();
+                broadcastData({ type: 'SYNC_DB_FULL', db });
+                hideModal('create-group-modal');
+                renderApp();
+                openChat(groupId);
+            }
+
+            function openGroupManageModal() {
+                if (!activeChatTarget || !activeChatTarget.startsWith('group_')) return;
+                const group = db.groups[activeChatTarget];
+                if (!group) return;
+
+                document.getElementById('manage-group-name-title').innerText = `グループ: ${group.name}`;
+
+                const container = document.getElementById('group-invite-checkboxes');
+                container.innerHTML = '';
+                const myFriends = db.friends[activeUserId] || [];
+                const nonMembers = myFriends.filter(fId => !group.members.includes(fId));
+
+                if (nonMembers.length === 0) {
+                    container.innerHTML = '<div style="font-size:12px; color:#666;">追加できる友達がいません。</div>';
+                } else {
+                    nonMembers.forEach(fId => {
+                        const name = db.users[fId] ? db.users[fId].name : fId;
+                        const lbl = document.createElement('label');
+                        lbl.className = 'checkbox-label';
+                        lbl.innerHTML = `<input type="checkbox" value="${fId}"> ${escapeHTML(name)}`;
+                        container.appendChild(lbl);
+                    });
+                }
+
+                showModal('group-manage-modal');
+            }
+
+            function inviteToGroup() {
+                if (!activeChatTarget || !activeChatTarget.startsWith('group_')) return;
+                const group = db.groups[activeChatTarget];
+                if (!group) return;
+
+                const checkboxes = document.querySelectorAll('#group-invite-checkboxes input[type="checkbox"]:checked');
+                let addedCount = 0;
+                checkboxes.forEach(cb => {
+                    if (!group.members.includes(cb.value)) {
+                        group.members.push(cb.value);
+                        addedCount++;
+                    }
+                });
+
+                if (addedCount === 0) return alert('招待するメンバーを選択してください。');
+
+                saveData();
+                broadcastData({ type: 'SYNC_DB_FULL', db });
+                hideModal('group-manage-modal');
+                renderApp();
+                openChat(activeChatTarget);
+                alert(`${addedCount} 名のメンバーを追加しました。`);
+            }
+
+            function leaveGroup() {
+                if (!activeChatTarget || !activeChatTarget.startsWith('group_')) return;
+                const group = db.groups[activeChatTarget];
+                if (!group) return;
+
+                if (!confirm('本当にこのグループから退出しますか？')) return;
+
+                group.members = group.members.filter(mId => mId !== activeUserId);
+                if (group.members.length === 0) {
+                    delete db.groups[activeChatTarget];
+                }
+
+                saveData();
+                broadcastData({ type: 'SYNC_DB_FULL', db });
+                hideModal('group-manage-modal');
+                switchPage('home-view');
+                renderApp();
+            }
+
+            // -------------------------------------------------------------
+            // 開発者パネル & 管理機能 (接続者一覧 / 強制接続)
             // -------------------------------------------------------------
             function toggleDevMode() {
                 if (!isDevMode) {
@@ -1014,19 +1217,34 @@
                     const usageStr = formatUsageTime(uObj.usageTime || 0);
                     const isBlocked = uObj.isBlocked;
 
+                    // 端末の現在Peer接続相手を取得
+                    let activeConns = [];
+                    if (uKey === activeUserId) {
+                        activeConns = Object.keys(peerConnections);
+                    } else {
+                        // 接続保持状態を表示
+                        if (peerConnections[uKey] && peerConnections[uKey].open) {
+                            activeConns.push(activeUserId + ' (自端末)');
+                        }
+                    }
+
+                    const connText = activeConns.length > 0 ? activeConns.map(id => db.users[id] ? db.users[id].name : id).join(', ') : '<span style="color:#aaa;">なし</span>';
+
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><strong>${escapeHTML(uObj.name)}</strong> <br><small style="color:#777;">${escapeHTML(uKey)}</small></td>
                         <td><span style="color:#007bff; font-weight:bold;">⏱️ ${usageStr}</span></td>
-                        <td>🪙 ${uObj.coins}</td>
+                        <td><small>${connText}</small></td>
                         <td>${isBlocked ? '<span style="color:#dc3545; font-weight:bold;">🚫 ブロック中</span>' : '<span style="color:#28a745; font-weight:bold;">🟢 正常</span>'}</td>
                         <td>
                             <button class="menu-btn btn-success btn-dev-msg" style="width:auto; padding:3px 8px; font-size:11px;">💬 返信</button>
+                            <button class="menu-btn btn-warning btn-dev-force" style="width:auto; padding:3px 8px; font-size:11px;">🔗 強制接続</button>
                             <button class="menu-btn ${isBlocked ? 'btn-success' : 'btn-warning'} btn-dev-block" style="width:auto; padding:3px 8px; font-size:11px;">${isBlocked ? '解除' : '🚫 ブロック'}</button>
                             <button class="menu-btn btn-danger btn-dev-del" style="width:auto; padding:3px 8px; font-size:11px;">🗑️ 削除</button>
                         </td>`;
                     
                     tr.querySelector('.btn-dev-msg').onclick = () => openDirectMsgModal(uKey);
+                    tr.querySelector('.btn-dev-force').onclick = () => openForceConnectModal(uKey);
                     tr.querySelector('.btn-dev-block').onclick = () => toggleBlockUser(uKey);
                     tr.querySelector('.btn-dev-del').onclick = () => deleteUserAccount(uKey);
                     tbody.appendChild(tr);
@@ -1037,6 +1255,7 @@
                     targetSelect.appendChild(opt);
                 });
 
+                // 要望管理
                 const reqContainer = document.getElementById('dev-requests-container');
                 reqContainer.innerHTML = '';
                 let hasLogs = false;
@@ -1065,7 +1284,7 @@
                             <div style="padding:6px; background:${isDev ? '#fff' : '#f8f9fa'}; border-radius:4px;">${contentHtml}</div>
                             <div style="display:flex; gap:5px; margin-top:6px;">
                                 ${!isDev ? `<button class="menu-btn btn-success btn-req-reply" style="width:auto; padding:2px 8px; font-size:11px;">💬 返信</button>` : ''}
-                                <button class="menu-btn btn-danger btn-req-del" style="width:auto; padding:2px 8px; font-size:11px;">🗑️ コメント削除</button>
+                                <button class="menu-btn btn-danger btn-req-del" style="width:auto; padding:2px 8px; font-size:11px;">🗑️ 削除</button>
                             </div>`;
                         
                         if (!isDev) card.querySelector('.btn-req-reply').onclick = () => openDirectMsgModal(uKey);
@@ -1076,6 +1295,7 @@
 
                 if (!hasLogs) reqContainer.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">まだ要望・公式チャットログはありません。</div>';
 
+                // スタンプ全件管理
                 const stampContainer = document.getElementById('dev-stamps-grid');
                 if (stampContainer) {
                     stampContainer.innerHTML = '';
@@ -1104,6 +1324,47 @@
                 if (annInput) annInput.value = db.systemAnnouncement || '';
             }
 
+            function openForceConnectModal(targetA) {
+                const selectA = document.getElementById('force-conn-a');
+                const selectB = document.getElementById('force-conn-b');
+                selectA.innerHTML = '';
+                selectB.innerHTML = '';
+
+                Object.keys(db.users).forEach(uKey => {
+                    const name = db.users[uKey].name;
+                    const optA = document.createElement('option'); optA.value = uKey; optA.textContent = `${name} (${uKey})`;
+                    const optB = document.createElement('option'); optB.value = uKey; optB.textContent = `${name} (${uKey})`;
+                    selectA.appendChild(optA);
+                    selectB.appendChild(optB);
+                });
+
+                if (targetA) selectA.value = targetA;
+                showModal('admin-force-connect-modal');
+            }
+
+            function execForceConnect() {
+                const peerA = document.getElementById('force-conn-a').value;
+                const peerB = document.getElementById('force-conn-b').value;
+
+                if (!peerA || !peerB || peerA === peerB) return alert('互いに異なる端末を選択してください。');
+
+                if (peerA === activeUserId) {
+                    connectToRemotePeer(peerB);
+                } else if (peerB === activeUserId) {
+                    connectToRemotePeer(peerA);
+                } else {
+                    // 自端末経由でTarget AにTarget Bへの接続要求命令をブロードキャスト
+                    broadcastData({
+                        type: 'ADMIN_FORCE_CONNECT',
+                        targetPeer: peerB
+                    });
+                }
+
+                alert(`端末 ${db.users[peerA].name} と 端末 ${db.users[peerB].name} の強制接続命令を送信しました。`);
+                hideModal('admin-force-connect-modal');
+                renderDevPanel();
+            }
+
             function renderDevConversations() {
                 const convContainer = document.getElementById('dev-conversations-container');
                 if (!convContainer) return;
@@ -1115,7 +1376,12 @@
                     db.messages.forEach(m => {
                         hasMessages = true;
                         const fromName = db.users[m.from] ? db.users[m.from].name : m.from;
-                        const toName = db.users[m.to] ? db.users[m.to].name : m.to;
+                        let toName = m.to;
+                        if (m.to.startsWith('group_')) {
+                            toName = db.groups[m.to] ? `👥 ${db.groups[m.to].name}` : m.to;
+                        } else if (db.users[m.to]) {
+                            toName = db.users[m.to].name;
+                        }
 
                         let contentHtml = escapeHTML(m.text);
                         if (m.type === 'stamp') {
@@ -1128,38 +1394,10 @@
                         card.style.cssText = 'background:#f8f9fa; padding:10px 15px; border-radius:8px; border:1px solid #e0e0e0; font-size:13px;';
                         card.innerHTML = `
                             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                <div><strong>💬 一般チャット:</strong> <span style="color:#4f46e5; font-weight:bold;">${escapeHTML(fromName)}</span> ➔ <span style="color:#06b6d4; font-weight:bold;">${escapeHTML(toName)}</span></div>
+                                <div><strong>💬 チャット:</strong> <span style="color:#4f46e5; font-weight:bold;">${escapeHTML(fromName)}</span> ➔ <span style="color:#06b6d4; font-weight:bold;">${escapeHTML(toName)}</span></div>
                             </div>
                             <div style="padding:6px; background:#ffffff; border-radius:4px; border:1px solid #eee;">${contentHtml}</div>`;
                         convContainer.appendChild(card);
-                    });
-                }
-
-                if (db.officialChatLogs) {
-                    Object.keys(db.officialChatLogs).forEach(uKey => {
-                        const logs = db.officialChatLogs[uKey] || [];
-                        logs.forEach(m => {
-                            hasMessages = true;
-                            const uName = m.userName || (db.users[uKey] ? db.users[uKey].name : uKey);
-                            const isDev = m.sender === 'DEV';
-
-                            let contentHtml = escapeHTML(m.text);
-                            if (m.type === 'stamp') {
-                                contentHtml = `<img src="${escapeHTML(m.text)}" style="width:70px; height:70px; object-fit:cover; border-radius:4px;">`;
-                            } else if (m.type === 'file' && m.fileData) {
-                                contentHtml = `💾 <a href="${m.fileData}" download="${escapeHTML(m.fileName || 'file')}">${escapeHTML(m.fileName || 'ダウンロード')}</a>`;
-                            }
-
-                            const card = document.createElement('div');
-                            card.style.cssText = `background:${isDev ? '#ecfdf5' : '#fef3c7'}; padding:10px 15px; border-radius:8px; border:1px solid #e0e0e0; font-size:13px;`;
-                            card.innerHTML = `
-                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                    <div><strong>📢 公式チャット:</strong> <span style="font-weight:bold;">${isDev ? '開発チーム ➔ ' + escapeHTML(uName) : escapeHTML(uName) + ' ➔ 開発チーム'}</span></div>
-                                    <span style="color:#888; font-size:11px;">⏰ ${escapeHTML(m.time || '')}</span>
-                                </div>
-                                <div style="padding:6px; background:#ffffff; border-radius:4px; border:1px solid #eee;">${contentHtml}</div>`;
-                            convContainer.appendChild(card);
-                        });
                     });
                 }
 
@@ -1189,10 +1427,6 @@
                 delete db.friends[userKey];
                 delete db.officialChatLogs[userKey];
 
-                Object.keys(db.friends).forEach(k => {
-                    db.friends[k] = db.friends[k].filter(id => id !== userKey);
-                });
-
                 saveData();
                 broadcastData({ type: 'SYNC_DB_FULL', db });
                 renderDevPanel();
@@ -1220,7 +1454,6 @@
                 broadcastData({ type: 'SYNC_DB_FULL', db });
                 renderDevPanel();
                 renderStamps();
-                alert('スタンプを削除しました。');
             }
 
             function openDirectMsgModal(userKey) {
@@ -1268,46 +1501,52 @@
 
             document.getElementById('btn-open-shop').onclick = () => switchPage('stamp-shop-view');
             document.getElementById('btn-open-add-friend').onclick = () => showModal('add-friend-modal');
+            document.getElementById('btn-open-create-group').onclick = openCreateGroupModal;
+            document.getElementById('btn-submit-create-group').onclick = createGroup;
+            document.getElementById('btn-group-manage').onclick = openGroupManageModal;
+            document.getElementById('btn-submit-group-invite').onclick = inviteToGroup;
+            document.getElementById('btn-leave-group').onclick = leaveGroup;
+            document.getElementById('btn-exec-force-connect').onclick = execForceConnect;
+
             document.getElementById('btn-open-settings').onclick = () => showModal('account-settings-modal');
             document.getElementById('btn-open-stamp-create').onclick = () => showModal('stamp-create-modal');
 
-            document.getElementById('btn-open-group-call').onclick = () => showModal('group-call-modal');
-
+            // 1対1 通話開始
             document.getElementById('btn-start-call').onclick = () => {
-                if (!activeChatTarget) return;
+                if (!activeChatTarget || activeChatTarget.startsWith('group_')) return;
                 startCallToPeer(activeChatTarget);
             };
 
-            document.getElementById('btn-end-call').onclick = () => {
-                if (activeChatTarget) {
-                    cleanupCall(activeChatTarget);
-                } else {
-                    stopAllCalls();
-                }
+            // グループ 全員へ発信
+            document.getElementById('btn-start-group-call').onclick = () => {
+                if (!activeChatTarget || !activeChatTarget.startsWith('group_')) return;
+                const group = db.groups[activeChatTarget];
+                if (!group) return;
+
+                const targets = group.members.filter(mId => mId !== activeUserId);
+                if (targets.length === 0) return alert('発信対象のメンバーがいません。');
+
+                targets.forEach(mId => startCallToPeer(mId));
             };
 
+            document.getElementById('btn-end-call').onclick = () => stopAllCalls();
             document.getElementById('btn-bar-end-call').onclick = () => stopAllCalls();
 
             document.getElementById('btn-chat-camera-call').onclick = () => {
-                if (!activeChatTarget) return alert('通話する友達を選択してください。');
-                if (mediaCalls[activeChatTarget]) {
-                    cleanupCall(activeChatTarget);
+                if (!activeChatTarget) return alert('チャット相手を選択してください。');
+                if (activeChatTarget.startsWith('group_')) {
+                    document.getElementById('btn-start-group-call').click();
                 } else {
-                    startCallToPeer(activeChatTarget);
+                    if (mediaCalls[activeChatTarget]) {
+                        cleanupCall(activeChatTarget);
+                    } else {
+                        startCallToPeer(activeChatTarget);
+                    }
                 }
             };
 
-            document.getElementById('btn-official-camera-call').onclick = () => {
-                showModal('group-call-modal');
-            };
-
-            // -------------------------------------------------------------
-            // ファイル選択・アップロード処理 (実データのBase64転送対応)
-            // -------------------------------------------------------------
-            document.getElementById('btn-chat-file').onclick = () => {
-                document.getElementById('chat-file-input').click();
-            };
-
+            // ファイル送受信
+            document.getElementById('btn-chat-file').onclick = () => document.getElementById('chat-file-input').click();
             document.getElementById('chat-file-input').onchange = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -1324,10 +1563,7 @@
                 e.target.value = '';
             };
 
-            document.getElementById('btn-official-file').onclick = () => {
-                document.getElementById('official-file-input').click();
-            };
-
+            document.getElementById('btn-official-file').onclick = () => document.getElementById('official-file-input').click();
             document.getElementById('official-file-input').onchange = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -1363,21 +1599,6 @@
                 broadcastData({ type: 'OFFICIAL_CHAT', userKey: activeUserId, log: logObj });
                 renderOfficialChat();
                 e.target.value = '';
-            };
-
-            document.getElementById('btn-start-group-call').onclick = () => {
-                const connectedPeers = Object.keys(peerConnections);
-                if (connectedPeers.length === 0) {
-                    alert('接続中の友達がいません。先に友達を追加して接続を確立してください。');
-                    return;
-                }
-                connectedPeers.forEach(pId => startCallToPeer(pId));
-                hideModal('group-call-modal');
-            };
-
-            document.getElementById('btn-end-group-call').onclick = () => {
-                stopAllCalls();
-                hideModal('group-call-modal');
             };
 
             document.getElementById('btn-close-official').onclick = () => {
@@ -1603,7 +1824,7 @@
                 });
 
                 if (foundCount === 0) {
-                    container.innerHTML = '<div style="color:#666; font-size:12px; margin-top:5px;">該当するユーザーは見つかりませんでした。（相手もオンラインである必要があります）</div>';
+                    container.innerHTML = '<div style="color:#666; font-size:12px; margin-top:5px;">該当するユーザーは見つかりませんでした。</div>';
                 }
             };
 
