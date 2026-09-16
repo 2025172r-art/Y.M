@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="app-title">Y.M (Secure Edition)</title>
+    <title id="app-title">Y.M (Secure & Enhanced Edition)</title>
     <link id="app-favicon" rel="icon" href="https://via.placeholder.com/192/007bff/ffffff?text=YM">
     <!-- PeerJS CDN: P2P通信ライブラリ -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -80,6 +80,12 @@
         .msg-dev { align-self: flex-start; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; border-bottom-left-radius: 2px; }
         .stamp-msg { background: transparent !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
         .stamp-msg img { width: 120px; height: 120px; object-fit: cover; border-radius: var(--radius-md); box-shadow: var(--shadow); }
+        .file-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(255,255,255,0.2); border-radius: var(--radius-sm); color: inherit; text-decoration: none; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
+        .msg-other .file-link { background: #f3f4f6; }
+
+        /* 通話状態バー */
+        .call-status-bar { background: var(--success); color: white; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.9; } 50% { opacity: 1; } 100% { opacity: 0.9; } }
 
         /* モーダル表示 */
         .modal { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.2s ease; }
@@ -164,6 +170,10 @@
 
         <!-- 一般友達チャット画面 -->
         <div id="chat-view" class="page-view chat-box hidden">
+            <div id="call-active-indicator" class="call-status-bar hidden">
+                <span>🎙️ 通話接続中...</span>
+                <button class="menu-btn btn-danger" style="width:auto; padding:2px 8px; font-size:11px; margin-bottom:0;" id="btn-bar-end-call">通話終了</button>
+            </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 id="chat-target-name" style="color:white;">チャット</h3>
                 <div style="display:flex; gap:8px;">
@@ -174,7 +184,6 @@
             <div class="chat-messages" id="chat-messages"></div>
             <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                 <button class="menu-btn" style="width:auto; background:#ffc107; color:#000; font-size:18px; padding:6px 12px;" id="btn-chat-stamp">🎨</button>
-                <!-- キャンバスアイコンの右隣にカメラアイコンを追加 -->
                 <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-chat-camera-call" title="音声通話を開始/終了">📷</button>
                 <button class="menu-btn" style="width:auto; background:#6c757d; font-size:18px; padding:6px 12px;" id="btn-chat-file" title="ファイルを選択してアップロード">📁</button>
                 <input type="file" id="chat-file-input" class="hidden">
@@ -192,7 +201,6 @@
             <div class="chat-messages" id="official-chat-messages"></div>
             <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
                 <button class="menu-btn" style="width:auto; background:#ffc107; color:#000; font-size:18px; padding:6px 12px;" id="btn-official-stamp">🎨</button>
-                <!-- キャンバスアイコンの右隣にカメラアイコンを追加 -->
                 <button class="menu-btn" style="width:auto; background:#17a2b8; font-size:18px; padding:6px 12px;" id="btn-official-camera-call" title="グループ通話画面を開く">📷</button>
                 <button class="menu-btn" style="width:auto; background:#6c757d; font-size:18px; padding:6px 12px;" id="btn-official-file" title="ファイルを選択してアップロード">📁</button>
                 <input type="file" id="official-file-input" class="hidden">
@@ -289,7 +297,6 @@
                 <div id="dev-stamps-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:15px; margin-top:10px;"></div>
             </div>
 
-            <!-- 6. 会話一覧項目 -->
             <div id="dev-tab-conversations" class="dev-tab-content hidden">
                 <h3>💬 全使用者の会話一覧</h3>
                 <p style="font-size:12px; color:#666; margin-bottom:10px;">全ユーザー間で送信されたすべてのチャットメッセージおよび公式チャットのやり取りを一覧で表示します。</p>
@@ -406,7 +413,6 @@
     </div>
 
     <script>
-        // 即時関数(IIFE)でスコープを密閉。window上の不正コンソール操作(db改ざん等)を防ぎます。
         (function() {
             'use strict';
 
@@ -466,13 +472,8 @@
                         toggleCallUI(true);
                     });
 
-                    call.on('close', () => {
-                        cleanupCall(call.peer);
-                    });
-
-                    call.on('error', () => {
-                        cleanupCall(call.peer);
-                    });
+                    call.on('close', () => cleanupCall(call.peer));
+                    call.on('error', () => cleanupCall(call.peer));
                 });
             }
 
@@ -487,13 +488,8 @@
                         toggleCallUI(true);
                     });
 
-                    call.on('close', () => {
-                        cleanupCall(targetPeerId);
-                    });
-
-                    call.on('error', () => {
-                        cleanupCall(targetPeerId);
-                    });
+                    call.on('close', () => cleanupCall(targetPeerId));
+                    call.on('error', () => cleanupCall(targetPeerId));
                 });
             }
 
@@ -515,30 +511,30 @@
             }
 
             function stopAllCalls() {
-                Object.keys(mediaCalls).forEach(pId => {
-                    cleanupCall(pId);
-                });
+                Object.keys(mediaCalls).forEach(pId => cleanupCall(pId));
             }
 
             function toggleCallUI(inCall) {
                 const btnStart = document.getElementById('btn-start-call');
                 const btnEnd = document.getElementById('btn-end-call');
+                const indicator = document.getElementById('call-active-indicator');
+                
                 if (btnStart && btnEnd) {
                     if (inCall) {
                         btnStart.classList.add('hidden');
                         btnEnd.classList.remove('hidden');
+                        if (indicator) indicator.classList.remove('hidden');
                     } else {
                         btnStart.classList.remove('hidden');
                         btnEnd.classList.add('hidden');
+                        if (indicator) indicator.classList.add('hidden');
                     }
                 }
             }
 
             // -------------------------------------------------------------
-            // セキュリティ＆ユーティリティ機能
+            // セキュリティ & ユーティリティ機能
             // -------------------------------------------------------------
-            
-            // XSS防止エスケープ
             function escapeHTML(str) {
                 if (typeof str !== 'string') return str;
                 return str.replace(/[&<>'"]/g, function(tag) {
@@ -547,7 +543,6 @@
                 });
             }
 
-            // 画像の軽量化圧縮処理（Canvasによるリサイズ＆画質調整。localStorage容量オーバー対策）
             function compressImageFile(file, maxWidth = 150, quality = 0.7) {
                 return new Promise((resolve) => {
                     if (!file) return resolve(null);
@@ -569,7 +564,6 @@
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
 
-                            // JPEG/WEBP圧縮データURLを出力
                             resolve(canvas.toDataURL('image/jpeg', quality));
                         };
                         img.onerror = () => resolve(null);
@@ -580,7 +574,16 @@
                 });
             }
 
-            // デベロッパーツールショートカットキーの無効化
+            // 一般ファイルをBase64文字列に変換（ファイル送受信の強化）
+            function readFileAsDataURL(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                });
+            }
+
             document.addEventListener('contextmenu', e => e.preventDefault());
             document.addEventListener('keydown', e => {
                 if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'U')) {
@@ -588,7 +591,7 @@
                 }
             });
 
-            // DB管理 (カプセル化)
+            // DB管理
             function loadAppDatabase() {
                 const rawData = localStorage.getItem('YM_DB');
                 const defaultDb = {
@@ -598,7 +601,7 @@
                     stamps: [],
                     officialChatLogs: {},
                     systemAnnouncement: '',
-                    systemVersion: '1.0.0'
+                    systemVersion: '1.1.0'
                 };
                 return rawData ? JSON.parse(rawData) : defaultDb;
             }
@@ -606,7 +609,12 @@
             let db = loadAppDatabase();
 
             function saveData() {
-                localStorage.setItem('YM_DB', JSON.stringify(db));
+                try {
+                    localStorage.setItem('YM_DB', JSON.stringify(db));
+                } catch (e) {
+                    console.warn("Storage quota exceeded. Cleaning up old message logs...");
+                    if (db.messages.length > 50) db.messages.shift();
+                }
             }
 
             if (!db.users[activeUserId]) {
@@ -638,17 +646,9 @@
                     if (inputEl) inputEl.value = id;
                 });
 
-                peer.on('connection', (conn) => {
-                    setupPeerConnection(conn);
-                });
-
-                peer.on('call', (call) => {
-                    handleCall(call);
-                });
-
-                peer.on('error', (err) => {
-                    console.warn("PeerJS status:", err.type);
-                });
+                peer.on('connection', (conn) => setupPeerConnection(conn));
+                peer.on('call', (call) => handleCall(call));
+                peer.on('error', (err) => console.warn("PeerJS Status:", err.type));
             }
 
             function setupPeerConnection(conn) {
@@ -662,13 +662,8 @@
                     });
                 });
 
-                conn.on('data', (data) => {
-                    handleIncomingPeerData(data, conn.peer);
-                });
-
-                conn.on('close', () => {
-                    delete peerConnections[conn.peer];
-                });
+                conn.on('data', (data) => handleIncomingPeerData(data, conn.peer));
+                conn.on('close', () => delete peerConnections[conn.peer]);
             }
 
             function connectToRemotePeer(remoteId) {
@@ -706,7 +701,6 @@
                     if (isDevMode) renderDevPanel();
                     renderOfficialChat();
                 } else if (data.type === 'SYNC_DB_FULL') {
-                    // 受信データの妥当性検証
                     if (data.db && typeof data.db === 'object') {
                         db = data.db;
                         saveData();
@@ -719,9 +713,8 @@
             }
 
             // -------------------------------------------------------------
-            // UIレンダー & アプリケーションロジック
+            // UIレンダー & ロジック
             // -------------------------------------------------------------
-            
             function formatUsageTime(seconds) {
                 if (!seconds) return '0分';
                 const m = Math.floor(seconds / 60);
@@ -760,7 +753,6 @@
                 const favicon = document.getElementById('app-favicon');
                 if (favicon && userObj.tabIcon) favicon.href = userObj.tabIcon;
 
-                // お知らせバナー描画 (安全なHTML挿入)
                 const annContainer = document.getElementById('system-announcement-container');
                 if (db.systemAnnouncement && db.systemAnnouncement.trim() !== '') {
                     annContainer.innerHTML = `<div class="announcement-banner">📢 <strong>お知らせ:</strong> ${escapeHTML(db.systemAnnouncement)}</div>`;
@@ -831,12 +823,20 @@
                 renderChat();
             }
 
-            function sendMessage(type = 'text', content = '') {
+            function sendMessage(type = 'text', content = '', filePayload = null) {
                 const textInput = document.getElementById('chat-input');
                 const text = type === 'text' ? textInput.value.trim() : content;
-                if (!text || !activeChatTarget) return;
+                if (!text && !filePayload) return;
 
-                const msgObj = { from: activeUserId, to: activeChatTarget, text, type };
+                const msgObj = { 
+                    from: activeUserId, 
+                    to: activeChatTarget, 
+                    text, 
+                    type,
+                    fileData: filePayload ? filePayload.data : null,
+                    fileName: filePayload ? filePayload.name : null
+                };
+
                 db.messages.push(msgObj);
                 if (type === 'text') textInput.value = '';
                 saveData();
@@ -854,11 +854,19 @@
                     const isMe = m.from === activeUserId;
                     const div = document.createElement('div');
                     div.className = `msg ${isMe ? 'msg-me' : 'msg-other'}`;
+                    
                     if (m.type === 'stamp') {
                         div.classList.add('stamp-msg');
                         const img = document.createElement('img');
                         img.src = m.text;
                         div.appendChild(img);
+                    } else if (m.type === 'file' && m.fileData) {
+                        const a = document.createElement('a');
+                        a.className = 'file-link';
+                        a.href = m.fileData;
+                        a.download = m.fileName || 'file';
+                        a.innerHTML = `💾 ${escapeHTML(m.fileName || 'ダウンロード')}`;
+                        div.appendChild(a);
                     } else {
                         div.textContent = m.text;
                     }
@@ -890,6 +898,13 @@
                             const img = document.createElement('img');
                             img.src = msg.text;
                             div.appendChild(img);
+                        } else if (msg.type === 'file' && msg.fileData) {
+                            const a = document.createElement('a');
+                            a.className = 'file-link';
+                            a.href = msg.fileData;
+                            a.download = msg.fileName || 'file';
+                            a.innerHTML = `💾 ${escapeHTML(msg.fileName || 'ダウンロード')}`;
+                            div.appendChild(a);
                         } else {
                             div.textContent = msg.text;
                         }
@@ -938,9 +953,7 @@
                     `;
 
                     card.querySelector('.buy-btn').onclick = () => buyStamp(s.id);
-                    if (isOwner) {
-                        card.querySelector('.del-btn').onclick = () => deleteStamp(s.id);
-                    }
+                    if (isOwner) card.querySelector('.del-btn').onclick = () => deleteStamp(s.id);
                     grid.appendChild(card);
                 });
             }
@@ -975,7 +988,6 @@
             // -------------------------------------------------------------
             // 開発者パネル機能
             // -------------------------------------------------------------
-
             function toggleDevMode() {
                 if (!isDevMode) {
                     document.getElementById('dev-auth-username').value = '';
@@ -1039,6 +1051,8 @@
                         let contentHtml = escapeHTML(m.text);
                         if (m.type === 'stamp') {
                             contentHtml = `<img src="${escapeHTML(m.text)}" style="width:80px; height:80px; object-fit:cover; border-radius:4px;">`;
+                        } else if (m.type === 'file' && m.fileData) {
+                            contentHtml = `💾 <a href="${m.fileData}" download="${escapeHTML(m.fileName || 'file')}">${escapeHTML(m.fileName || 'ダウンロード')}</a>`;
                         }
 
                         const card = document.createElement('div');
@@ -1054,9 +1068,7 @@
                                 <button class="menu-btn btn-danger btn-req-del" style="width:auto; padding:2px 8px; font-size:11px;">🗑️ コメント削除</button>
                             </div>`;
                         
-                        if (!isDev) {
-                            card.querySelector('.btn-req-reply').onclick = () => openDirectMsgModal(uKey);
-                        }
+                        if (!isDev) card.querySelector('.btn-req-reply').onclick = () => openDirectMsgModal(uKey);
                         card.querySelector('.btn-req-del').onclick = () => deleteRequestComment(uKey, index);
                         reqContainer.appendChild(card);
                     });
@@ -1086,7 +1098,6 @@
                     }
                 }
 
-                // 6. 会話一覧描画
                 renderDevConversations();
 
                 const annInput = document.getElementById('dev-announcement-text');
@@ -1100,7 +1111,6 @@
 
                 let hasMessages = false;
 
-                // 1. 一般ユーザー間チャットメッセージ
                 if (db.messages && db.messages.length > 0) {
                     db.messages.forEach(m => {
                         hasMessages = true;
@@ -1110,6 +1120,8 @@
                         let contentHtml = escapeHTML(m.text);
                         if (m.type === 'stamp') {
                             contentHtml = `<img src="${escapeHTML(m.text)}" style="width:70px; height:70px; object-fit:cover; border-radius:4px;">`;
+                        } else if (m.type === 'file' && m.fileData) {
+                            contentHtml = `💾 <a href="${m.fileData}" download="${escapeHTML(m.fileName || 'file')}">${escapeHTML(m.fileName || 'ダウンロード')}</a>`;
                         }
 
                         const card = document.createElement('div');
@@ -1123,7 +1135,6 @@
                     });
                 }
 
-                // 2. 公式チャットログ
                 if (db.officialChatLogs) {
                     Object.keys(db.officialChatLogs).forEach(uKey => {
                         const logs = db.officialChatLogs[uKey] || [];
@@ -1135,6 +1146,8 @@
                             let contentHtml = escapeHTML(m.text);
                             if (m.type === 'stamp') {
                                 contentHtml = `<img src="${escapeHTML(m.text)}" style="width:70px; height:70px; object-fit:cover; border-radius:4px;">`;
+                            } else if (m.type === 'file' && m.fileData) {
+                                contentHtml = `💾 <a href="${m.fileData}" download="${escapeHTML(m.fileName || 'file')}">${escapeHTML(m.fileName || 'ダウンロード')}</a>`;
                             }
 
                             const card = document.createElement('div');
@@ -1235,11 +1248,9 @@
             // -------------------------------------------------------------
             // イベントリスナー設定
             // -------------------------------------------------------------
-
             document.getElementById('dev-mode-btn').onclick = toggleDevMode;
             document.getElementById('btn-exit-dev').onclick = toggleDevMode;
 
-            // 開発者認証送信処理
             document.getElementById('btn-submit-dev-auth').onclick = () => {
                 const userVal = document.getElementById('dev-auth-username').value.trim();
                 const passVal = document.getElementById('dev-auth-password').value.trim();
@@ -1275,7 +1286,8 @@
                 }
             };
 
-            // カメラアイコン「📷」ボタンの通話イベントハンドラ
+            document.getElementById('btn-bar-end-call').onclick = () => stopAllCalls();
+
             document.getElementById('btn-chat-camera-call').onclick = () => {
                 if (!activeChatTarget) return alert('通話する友達を選択してください。');
                 if (mediaCalls[activeChatTarget]) {
@@ -1290,7 +1302,7 @@
             };
 
             // -------------------------------------------------------------
-            // ファイルアップロード機能（一般チャット／公式チャット）
+            // ファイル選択・アップロード処理 (実データのBase64転送対応)
             // -------------------------------------------------------------
             document.getElementById('btn-chat-file').onclick = () => {
                 document.getElementById('chat-file-input').click();
@@ -1304,7 +1316,10 @@
                     const compressed = await compressImageFile(file, 300, 0.7);
                     if (compressed) sendMessage('stamp', compressed);
                 } else {
-                    sendMessage('text', `📁 [ファイル] ${file.name}`);
+                    const dataUrl = await readFileAsDataURL(file);
+                    if (dataUrl) {
+                        sendMessage('file', `📁 [ファイル] ${file.name}`, { name: file.name, data: dataUrl });
+                    }
                 }
                 e.target.value = '';
             };
@@ -1319,6 +1334,7 @@
 
                 let content = `📁 [ファイル] ${file.name}`;
                 let messageType = 'text';
+                let fileDataUrl = null;
 
                 if (file.type.startsWith('image/')) {
                     const compressed = await compressImageFile(file, 300, 0.7);
@@ -1326,6 +1342,9 @@
                         content = compressed;
                         messageType = 'stamp';
                     }
+                } else {
+                    messageType = 'file';
+                    fileDataUrl = await readFileAsDataURL(file);
                 }
 
                 if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
@@ -1334,6 +1353,8 @@
                     userName: db.users[activeUserId].name,
                     text: content,
                     type: messageType,
+                    fileName: file.name,
+                    fileData: fileDataUrl,
                     time: new Date().toLocaleTimeString()
                 };
 
