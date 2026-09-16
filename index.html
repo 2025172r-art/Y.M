@@ -67,6 +67,15 @@
         .official-account { background: #ecfdf5; border-color: #a7f3d0; }
         .official-account:hover { background: #d1fae5; border-color: var(--success); }
 
+        /* オンライン・オフラインバッジ */
+        .status-online { font-size: 11px; color: #10b981; font-weight: bold; margin-top: 2px; }
+        .status-offline { font-size: 11px; color: #9ca3af; font-weight: bold; margin-top: 2px; }
+
+        /* 日付切り替えセパレータ */
+        .date-divider { display: flex; align-items: center; text-align: center; margin: 16px 0; color: var(--text-muted); font-size: 12px; font-weight: bold; }
+        .date-divider::before, .date-divider::after { content: ''; flex: 1; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .date-divider span { padding: 0 12px; background: rgba(255, 255, 255, 0.6); border-radius: 12px; }
+
         /* メインコンテンツエリア */
         .main-content { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: var(--bg-main); }
         .card { background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border-color); }
@@ -91,6 +100,7 @@
         .msg-other .msg-meta { color: var(--text-muted); }
         .msg-read-status { font-weight: bold; color: #a7f3d0; font-size: 10px; }
         .msg-me .msg-read-status { color: #818cf8; }
+        .msg-time { opacity: 0.8; font-size: 10px; }
         .msg-unsend-btn { background: none; border: none; color: rgba(255, 255, 255, 0.7); cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0; }
         .msg-other .msg-unsend-btn { color: var(--danger); }
         .msg-unsend-btn:hover { color: #ffffff; }
@@ -532,6 +542,9 @@
             // 開発者パネル「要望管理」用の一時非表示インデックスリスト
             let hiddenRequestIndices = {};
 
+            // オンライン状態管理（PeerID -> boolean）
+            const onlineStatusMap = {};
+
             // 端末ID管理
             let deviceId = localStorage.getItem('YM_DEVICE_ID');
             if (!deviceId) {
@@ -920,6 +933,20 @@
                 }
             });
 
+            // アクティブタブ（現在実際に見ているか）のリアルタイム監視・ブロードキャスト
+            function broadcastPresence() {
+                const isOnline = (document.visibilityState === 'visible');
+                broadcastData({
+                    type: 'PRESENCE_STATUS',
+                    userKey: activeUserId,
+                    isOnline: isOnline
+                });
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                broadcastPresence();
+            });
+
             // DB管理
             function loadAppDatabase() {
                 const rawData = localStorage.getItem('YM_DB');
@@ -994,11 +1021,16 @@
                         userKey: activeUserId,
                         userData: db.users[activeUserId]
                     });
+                    broadcastPresence();
                     checkAndSendReadReceipts();
                 });
 
                 conn.on('data', (data) => handleIncomingPeerData(data, conn.peer));
-                conn.on('close', () => delete peerConnections[conn.peer]);
+                conn.on('close', () => {
+                    delete peerConnections[conn.peer];
+                    delete onlineStatusMap[conn.peer];
+                    renderApp();
+                });
             }
 
             function connectToRemotePeer(remoteId) {
@@ -1023,6 +1055,9 @@
                         db.friends[activeUserId].push(data.userKey);
                     }
                     saveData();
+                    renderApp();
+                } else if (data.type === 'PRESENCE_STATUS') {
+                    onlineStatusMap[data.userKey] = !!data.isOnline;
                     renderApp();
                 } else if (data.type === 'CHAT_MSG') {
                     const exists = db.messages.some(m => m.msgId && data.message.msgId && m.msgId === data.message.msgId);
@@ -1101,7 +1136,7 @@
                         if (userIdx >= 0) {
                             targetMsg.reactions[data.emoji].splice(userIdx, 1);
                             if (targetMsg.reactions[data.emoji].length === 0) {
-                                delete targetMsg.reactions[data.emoji];
+                                delete targetMsg.reactions[emoji];
                             }
                         } else {
                             targetMsg.reactions[data.emoji].push(data.from);
@@ -1227,9 +1262,16 @@
 
                 (db.friends[activeUserId] || []).forEach(fKey => {
                     const friendName = db.users[fKey] ? db.users[fKey].name : fKey;
+                    const isOnline = !!onlineStatusMap[fKey];
                     const item = document.createElement('div');
                     item.className = 'friend-item';
-                    item.innerHTML = `<div>${escapeHTML(friendName)}</div>`;
+                    item.innerHTML = `
+                        <div>
+                            <div><strong>${escapeHTML(friendName)}</strong></div>
+                            <div class="${isOnline ? 'status-online' : 'status-offline'}">
+                                ${isOnline ? '🟢 オンライン' : '⚪ オフライン'}
+                            </div>
+                        </div>`;
                     item.onclick = () => openChat(fKey);
                     friendContainer.appendChild(item);
                 });
@@ -1291,6 +1333,7 @@
                 if (!text && !filePayload) return;
 
                 const isGroup = !!(db.groups && db.groups[activeChatTarget]);
+                const now = new Date();
                 const msgObj = { 
                     msgId: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
                     from: activeUserId, 
@@ -1301,7 +1344,8 @@
                     fileData: filePayload ? filePayload.data : null,
                     fileName: filePayload ? filePayload.name : null,
                     readBy: [],
-                    reactions: {}
+                    reactions: {},
+                    timestamp: now.getTime()
                 };
 
                 db.messages.push(msgObj);
@@ -1409,7 +1453,39 @@
                     msgs = db.messages.filter(m => (m.from === activeUserId && m.to === activeChatTarget) || (m.from === activeChatTarget && m.to === activeUserId));
                 }
 
+                let lastYear = null;
+                let lastMonthDay = null;
+
                 msgs.forEach(m => {
+                    const msgDate = m.timestamp ? new Date(m.timestamp) : new Date();
+                    const currentYear = msgDate.getFullYear();
+                    const currentMonthDay = `${msgDate.getMonth() + 1}月${msgDate.getDate()}日`;
+                    const timeStr = `${String(msgDate.getHours()).padStart(2, '0')}:${String(msgDate.getMinutes()).padStart(2, '0')}`;
+
+                    // 年が変わった場合の区切り線表示
+                    if (lastYear !== null && lastYear !== currentYear) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-divider';
+                        dateDiv.innerHTML = `<span>${currentYear}年${currentMonthDay}</span>`;
+                        container.appendChild(dateDiv);
+                    } 
+                    // 日付が変わった場合の区切り線表示
+                    else if (lastMonthDay !== null && lastMonthDay !== currentMonthDay) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-divider';
+                        dateDiv.innerHTML = `<span>${currentMonthDay}</span>`;
+                        container.appendChild(dateDiv);
+                    } else if (lastYear === null) {
+                        // 初回描画時の日付ヘッダー
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-divider';
+                        dateDiv.innerHTML = `<span>${currentYear}年${currentMonthDay}</span>`;
+                        container.appendChild(dateDiv);
+                    }
+
+                    lastYear = currentYear;
+                    lastMonthDay = currentMonthDay;
+
                     const isMe = m.from === activeUserId;
                     const wrapper = document.createElement('div');
                     wrapper.className = `msg-wrapper ${isMe ? 'me' : 'other'}`;
@@ -1519,9 +1595,14 @@
                         wrapper.appendChild(popover);
                     }
 
-                    // メタ情報 (既読判定 & 送信取り消し / 削除)
+                    // メタ情報 (時刻表示, 既読判定 & 送信取り消し / 削除)
                     const metaDiv = document.createElement('div');
                     metaDiv.className = 'msg-meta';
+
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'msg-time';
+                    timeSpan.innerText = timeStr;
+                    metaDiv.appendChild(timeSpan);
 
                     if (isMe) {
                         const readCount = (m.readBy || []).length;
@@ -1579,11 +1660,39 @@
                     return;
                 }
 
+                let lastYear = null;
+                let lastMonthDay = null;
+
                 logs.forEach(msg => {
+                    const msgDate = msg.timestamp ? new Date(msg.timestamp) : new Date();
+                    const currentYear = msgDate.getFullYear();
+                    const currentMonthDay = `${msgDate.getMonth() + 1}月${msgDate.getDate()}日`;
+                    const timeStr = `${String(msgDate.getHours()).padStart(2, '0')}:${String(msgDate.getMinutes()).padStart(2, '0')}`;
+
+                    if (lastYear !== null && lastYear !== currentYear) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-divider';
+                        dateDiv.innerHTML = `<span>${currentYear}年${currentMonthDay}</span>`;
+                        container.appendChild(dateDiv);
+                    } else if (lastMonthDay !== null && lastMonthDay !== currentMonthDay) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-divider';
+                        dateDiv.innerHTML = `<span>${currentMonthDay}</span>`;
+                        container.appendChild(dateDiv);
+                    } else if (lastYear === null) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-divider';
+                        dateDiv.innerHTML = `<span>${currentYear}年${currentMonthDay}</span>`;
+                        container.appendChild(dateDiv);
+                    }
+
+                    lastYear = currentYear;
+                    lastMonthDay = currentMonthDay;
+
                     const div = document.createElement('div');
                     if (msg.sender === 'DEV') {
                         div.className = 'msg msg-dev';
-                        div.innerHTML = `<strong>📢 開発チーム:</strong><br>${escapeHTML(msg.text)}`;
+                        div.innerHTML = `<strong>📢 開発チーム:</strong><br>${escapeHTML(msg.text)}<div style="font-size:10px; opacity:0.8; margin-top:4px;">${timeStr}</div>`;
                     } else {
                         div.className = 'msg msg-me';
                         if (msg.type === 'stamp') {
@@ -1607,6 +1716,12 @@
                         } else {
                             div.textContent = msg.text;
                         }
+                        const timeSpan = document.createElement('div');
+                        timeSpan.style.fontSize = '10px';
+                        timeSpan.style.opacity = '0.8';
+                        timeSpan.style.marginTop = '4px';
+                        timeSpan.innerText = timeStr;
+                        div.appendChild(timeSpan);
                     }
                     container.appendChild(div);
                 });
@@ -1615,6 +1730,7 @@
             }
 
             function sendStampFromModal(url) {
+                const now = new Date();
                 if (currentStampTarget === 'official') {
                     if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
                     const logObj = {
@@ -1622,7 +1738,8 @@
                         userName: db.users[activeUserId].name,
                         text: url,
                         type: 'stamp',
-                        time: new Date().toLocaleTimeString()
+                        time: now.toLocaleTimeString(),
+                        timestamp: now.getTime()
                     };
                     db.officialChatLogs[activeUserId].push(logObj);
                     saveData();
@@ -2170,13 +2287,15 @@
                 const text = input.value.trim();
                 if (!text) return;
 
+                const now = new Date();
                 if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
                 const logObj = {
                     sender: 'USER',
                     userName: db.users[activeUserId].name,
                     text: text,
                     type: 'text',
-                    time: new Date().toLocaleTimeString()
+                    time: now.toLocaleTimeString(),
+                    timestamp: now.getTime()
                 };
                 db.officialChatLogs[activeUserId].push(logObj);
                 input.value = '';
@@ -2200,6 +2319,7 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 const fileData = await readFileAsDataURL(file);
+                const now = new Date();
                 if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
                 const logObj = {
                     sender: 'USER',
@@ -2208,7 +2328,8 @@
                     type: 'file',
                     fileData: fileData,
                     fileName: file.name,
-                    time: new Date().toLocaleTimeString()
+                    time: now.toLocaleTimeString(),
+                    timestamp: now.getTime()
                 };
                 db.officialChatLogs[activeUserId].push(logObj);
                 saveData();
@@ -2246,19 +2367,19 @@
                 broadcastData({ type: 'SYNC_USER_INFO', userKey: activeUserId, userData: uObj });
                 renderApp();
                 hideModal('account-settings-modal');
-                alert('設定を保存しました！');
+                alert('設定を保存しました。');
             };
 
-            // 友達追加・合言葉
+            // 直接接続・友達追加
             document.getElementById('btn-connect-direct').onclick = () => {
-                const targetId = document.getElementById('remote-peer-id-input').value.trim();
-                if (!targetId) return alert('PeerIDを入力してください。');
-                addFriend(targetId);
+                const remoteId = document.getElementById('remote-peer-id-input').value.trim();
+                if (!remoteId) return alert('PeerIDを入力してください。');
+                addFriend(remoteId);
             };
 
+            // 合言葉機能
             document.getElementById('btn-set-secret').onclick = () => {
                 const secret = document.getElementById('secret-word-input').value.trim();
-                if (!secret) return alert('合言葉を入力してください。');
                 db.users[activeUserId].secretWord = secret;
                 saveData();
                 broadcastData({ type: 'SYNC_USER_INFO', userKey: activeUserId, userData: db.users[activeUserId] });
@@ -2267,7 +2388,7 @@
 
             document.getElementById('btn-search-secret').onclick = () => {
                 const secret = document.getElementById('secret-word-input').value.trim();
-                if (!secret) return alert('合言葉を入力してください。');
+                if (!secret) return alert('検索する合言葉を入力してください。');
 
                 const container = document.getElementById('found-friends-list');
                 container.innerHTML = '';
@@ -2277,37 +2398,36 @@
                     if (uKey !== activeUserId && db.users[uKey].secretWord === secret) {
                         found = true;
                         const div = document.createElement('div');
-                        div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:8px; background:#f8f9fa; border-radius:4px;';
+                        div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#f0f0f0; padding:8px; border-radius:4px;';
                         div.innerHTML = `<span><strong>${escapeHTML(db.users[uKey].name)}</strong> (${escapeHTML(uKey)})</span>`;
                         const btn = document.createElement('button');
                         btn.className = 'menu-btn btn-success';
-                        btn.style.cssText = 'width:auto; padding:4px 10px; font-size:12px; margin:0;';
-                        btn.innerText = '追加';
+                        btn.style.cssText = 'width:auto; padding:4px 8px; font-size:12px; margin:0;';
+                        btn.textContent = '追加';
                         btn.onclick = () => addFriend(uKey);
                         div.appendChild(btn);
                         container.appendChild(div);
                     }
                 });
 
-                if (!found) container.innerHTML = '<div style="color:#666; font-size:12px;">同じ合言葉を設定しているユーザーが見つかりませんでした。</div>';
+                if (!found) container.innerHTML = '<div style="font-size:12px; color:#888;">一致する合言葉のユーザーが見つかりませんでした。相手も同じ合言葉を設定しているか確認してください。</div>';
             };
 
-            // 出品モーダル制御
+            // スタンプ/リアクション出品制御 UI切替
             document.getElementById('stamp-item-type').onchange = (e) => {
                 const val = e.target.value;
                 if (val === 'reaction') {
+                    document.getElementById('lbl-stamp-title').innerText = 'リアクション名';
                     document.getElementById('stamp-img-input-group').classList.add('hidden');
                     document.getElementById('reaction-text-input-group').classList.remove('hidden');
-                    document.getElementById('lbl-stamp-title').innerText = 'リアクション名';
                 } else {
+                    document.getElementById('lbl-stamp-title').innerText = 'スタンプ名';
                     document.getElementById('stamp-img-input-group').classList.remove('hidden');
                     document.getElementById('reaction-text-input-group').classList.add('hidden');
-                    document.getElementById('lbl-stamp-title').innerText = 'スタンプ名';
                 }
             };
 
             document.getElementById('btn-open-stamp-create').onclick = () => showModal('stamp-create-modal');
-
             document.getElementById('btn-publish-stamp').onclick = async () => {
                 const itemType = document.getElementById('stamp-item-type').value;
                 const title = document.getElementById('stamp-title').value.trim();
@@ -2315,39 +2435,75 @@
 
                 if (!title) return alert('名前を入力してください。');
 
-                let imgUrl = null;
-                let emojiContent = null;
+                let itemImg = null;
+                let itemContent = null;
 
                 if (itemType === 'reaction') {
-                    emojiContent = document.getElementById('reaction-emoji-text').value.trim();
-                    if (!emojiContent) return alert('絵文字またはテキストを入力してください。');
+                    itemContent = document.getElementById('reaction-emoji-text').value.trim();
+                    if (!itemContent) return alert('リアクション用の文字または絵文字を入力してください。');
                 } else {
-                    const fileInput = document.getElementById('stamp-file-input');
-                    if (fileInput.files[0]) {
-                        imgUrl = await compressImageFile(fileInput.files[0], 200);
+                    const file = document.getElementById('stamp-file-input').files[0];
+                    if (file) {
+                        itemImg = await compressImageFile(file, 200);
                     } else {
-                        imgUrl = document.getElementById('stamp-img-url').value.trim();
+                        itemImg = document.getElementById('stamp-img-url').value.trim();
                     }
-                    if (!imgUrl) return alert('画像を選択するかURLを入力してください。');
+                    if (!itemImg) return alert('スタンプ画像を選択するかURLを入力してください。');
                 }
 
                 const newStamp = {
                     id: 'stamp_' + Date.now(),
-                    itemType,
-                    title,
-                    img: imgUrl,
-                    content: emojiContent,
-                    price,
-                    seller: activeUserId
+                    seller: activeUserId,
+                    itemType: itemType,
+                    title: title,
+                    img: itemImg,
+                    content: itemContent,
+                    price: price
                 };
 
                 db.stamps.push(newStamp);
                 saveData();
                 broadcastData({ type: 'SYNC_DB_FULL', db });
-
-                hideModal('stamp-create-modal');
                 renderStamps();
+                hideModal('stamp-create-modal');
                 alert('出品しました！');
+            };
+
+            // 開発者直接メッセージ返信
+            document.getElementById('btn-send-direct-msg').onclick = () => {
+                if (!selectedDirectUser) return;
+                const text = document.getElementById('direct-msg-text').value.trim();
+                if (!text) return;
+
+                const now = new Date();
+                if (!db.officialChatLogs[selectedDirectUser]) db.officialChatLogs[selectedDirectUser] = [];
+                const logObj = {
+                    sender: 'DEV',
+                    userName: 'アップグレード (公式)',
+                    text: text,
+                    type: 'text',
+                    time: now.toLocaleTimeString(),
+                    timestamp: now.getTime()
+                };
+
+                db.officialChatLogs[selectedDirectUser].push(logObj);
+                saveData();
+                broadcastData({ type: 'OFFICIAL_CHAT', userKey: selectedDirectUser, log: logObj });
+
+                document.getElementById('direct-msg-text').value = '';
+                hideModal('dev-direct-msg-modal');
+                renderDevPanel();
+                alert('メッセージを送信しました。');
+            };
+
+            // 開発者アナウンス保存
+            document.getElementById('btn-save-announcement').onclick = () => {
+                const text = document.getElementById('dev-announcement-text').value;
+                db.systemAnnouncement = text;
+                saveData();
+                broadcastData({ type: 'SYNC_DB_FULL', db });
+                renderApp();
+                alert('全体アナウンスを保存・配信しました。');
             };
 
             // 開発者タブ切り替え
@@ -2362,13 +2518,14 @@
                 };
             });
 
+            // 配布機能の種別切り替え
             document.getElementById('distribute-type').onchange = (e) => {
-                if (e.target.value === 'coin') {
-                    document.getElementById('dist-coin-area').classList.remove('hidden');
-                    document.getElementById('dist-stamp-area').classList.add('hidden');
-                } else {
+                if (e.target.value === 'stamp') {
                     document.getElementById('dist-coin-area').classList.add('hidden');
                     document.getElementById('dist-stamp-area').classList.remove('hidden');
+                } else {
+                    document.getElementById('dist-coin-area').classList.remove('hidden');
+                    document.getElementById('dist-stamp-area').classList.add('hidden');
                 }
             };
 
@@ -2378,23 +2535,25 @@
                 const type = document.getElementById('distribute-type').value;
 
                 if (!targetKey || !db.users[targetKey]) return alert('対象ユーザーを選択してください。');
-                const user = db.users[targetKey];
 
                 if (type === 'coin') {
                     const amount = parseInt(document.getElementById('dist-coin-amount').value, 10) || 0;
-                    user.coins = (user.coins || 0) + amount;
-                    alert(`${user.name} に ${amount} コインを配布しました。`);
-                } else {
-                    const stampName = document.getElementById('dist-stamp-name').value.trim() || '特別スタンプ';
-                    let stampUrl = document.getElementById('dist-stamp-url').value.trim();
-                    const stampFile = document.getElementById('dist-stamp-file').files[0];
+                    db.users[targetKey].coins = (db.users[targetKey].coins || 0) + amount;
+                    alert(`${db.users[targetKey].name} に ${amount} コインを配布しました。`);
+                } else if (type === 'stamp') {
+                    const name = document.getElementById('dist-stamp-name').value.trim();
+                    const file = document.getElementById('dist-stamp-file').files[0];
+                    let imgUrl = document.getElementById('dist-stamp-url').value.trim();
 
-                    if (stampFile) stampUrl = await compressImageFile(stampFile, 200);
-                    if (!stampUrl) return alert('スタンプ画像を指定してください。');
+                    if (file) {
+                        imgUrl = await compressImageFile(file, 200);
+                    }
 
-                    if (!user.myStamps) user.myStamps = [];
-                    user.myStamps.push(stampUrl);
-                    alert(`${user.name} に特別スタンプ「${stampName}」を配布しました。`);
+                    if (!imgUrl) return alert('スタンプ画像を指定してください。');
+
+                    if (!db.users[targetKey].myStamps) db.users[targetKey].myStamps = [];
+                    db.users[targetKey].myStamps.push(imgUrl);
+                    alert(`${db.users[targetKey].name} に特別スタンプ (${name || '特別スタンプ'}) を配布しました。`);
                 }
 
                 saveData();
@@ -2403,55 +2562,17 @@
                 renderApp();
             };
 
-            // 全体通知配信
-            document.getElementById('btn-save-announcement').onclick = () => {
-                const text = document.getElementById('dev-announcement-text').value;
-                db.systemAnnouncement = text;
-                saveData();
-                broadcastData({ type: 'SYNC_DB_FULL', db });
-                renderApp();
-                alert('全体通知を更新・配信しました！');
-            };
-
-            // 直接返信送信
-            document.getElementById('btn-send-direct-msg').onclick = () => {
-                if (!selectedDirectUser) return;
-                const text = document.getElementById('direct-msg-text').value.trim();
-                if (!text) return;
-
-                if (!db.officialChatLogs[selectedDirectUser]) db.officialChatLogs[selectedDirectUser] = [];
-                const logObj = {
-                    sender: 'DEV',
-                    userName: '開発チーム',
-                    text: text,
-                    type: 'text',
-                    time: new Date().toLocaleTimeString()
-                };
-
-                db.officialChatLogs[selectedDirectUser].push(logObj);
-                document.getElementById('direct-msg-text').value = '';
-                saveData();
-
-                broadcastData({ type: 'OFFICIAL_CHAT', userKey: selectedDirectUser, log: logObj });
-                hideModal('dev-direct-msg-modal');
-                renderDevPanel();
-                if (selectedDirectUser === activeUserId) renderOfficialChat();
-                alert('返信を送信しました！');
-            };
-
-            // 使用時間の自動カウント (10秒ごと)
+            // 使用時間の自動カウントタイマー (1秒ごと)
             setInterval(() => {
                 if (activeUserId && db.users[activeUserId]) {
-                    db.users[activeUserId].usageTime = (db.users[activeUserId].usageTime || 0) + 10;
+                    db.users[activeUserId].usageTime = (db.users[activeUserId].usageTime || 0) + 1;
                     saveData();
-                    if (isDevMode) renderDevPanel();
                 }
-            }, 10000);
+            }, 1000);
 
-            // 初期化実行
+            // アプリの初期化呼び出し
             initPeer();
             renderApp();
-            switchPage('home-view');
 
         })();
     </script>
