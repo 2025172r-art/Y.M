@@ -1594,6 +1594,10 @@
             }
 
             function sendMessage(type = 'text', content = '', filePayload = null) {
+                if (!activeChatTarget) {
+                    alert('送信先のチャットが選択されていません。');
+                    return;
+                }
                 const textInput = document.getElementById('chat-input');
                 const text = type === 'text' ? textInput.value.trim() : content;
                 if (!text && !filePayload) return;
@@ -2335,9 +2339,9 @@
                         <td><strong>${escapeHTML(u.name)}</strong><br><small style="color:#666;">${uKey}</small></td>
                         <td>${formatUsageTime(u.usageTime || 0)}</td>
                         <td>🪙 ${u.coins}</td>
-                        <td>${u.isBlocked ? '<span style="color:#ef4444; font-weight:bold;">ブロック中</span>' : '<span style="color:#10b981; font-weight:bold;">正常</span>'}</td>
+                        <td>${u.isBlocked ? '<span style="color:red; font-weight:bold;">ブロック中</span>' : '<span style="color:green; font-weight:bold;">正常</span>'}</td>
                         <td>
-                            <button class="menu-btn ${u.isBlocked ? 'btn-success' : 'btn-danger'} block-toggle-btn" style="padding:4px 8px; font-size:11px; margin:0;">
+                            <button class="menu-btn ${u.isBlocked ? 'btn-success' : 'btn-danger'} block-toggle-btn" style="padding:2px 6px; font-size:11px; width:auto; margin:0; display:inline-block;">
                                 ${u.isBlocked ? '解除' : 'ブロック'}
                             </button>
                         </td>
@@ -2346,111 +2350,160 @@
                         u.isBlocked = !u.isBlocked;
                         saveData();
                         renderDevPanel();
-                        renderApp();
                     };
                     uList.appendChild(tr);
                 });
 
-                // 配布セレクト更新
+                // 配布対象ドロップダウン更新
                 const distTarget = document.getElementById('distribute-target');
-                distTarget.innerHTML = '<option value="ALL">【全員へ一斉配布】</option>';
+                distTarget.innerHTML = '<option value="ALL">【全員一斉配布】</option>';
                 Object.keys(db.users).forEach(uKey => {
-                    const u = db.users[uKey];
                     const opt = document.createElement('option');
                     opt.value = uKey;
-                    opt.innerText = `${u.name} (${uKey})`;
+                    opt.innerText = `${db.users[uKey].name} (${uKey})`;
                     distTarget.appendChild(opt);
                 });
 
-                // 全体アナウンスフォーム
-                document.getElementById('dev-announcement-text').value = db.systemAnnouncement || '';
-                document.getElementById('dev-announcement-style').value = db.systemAnnouncementStyle || 'normal';
+                // アナウンスフォーム初期化
+                const announceTextEl = document.getElementById('dev-announcement-text');
+                const announceStyleEl = document.getElementById('dev-announcement-style');
+                const charCountEl = document.getElementById('announcement-char-count');
+                if (announceTextEl && announceStyleEl) {
+                    announceTextEl.value = db.systemAnnouncement || '';
+                    announceStyleEl.value = db.systemAnnouncementStyle || 'normal';
+                    if (charCountEl) charCountEl.innerText = `${announceTextEl.value.length} / 1000 文字`;
+                }
 
-                // 4. 要望管理
+                // 要望管理
                 const reqContainer = document.getElementById('dev-requests-container');
                 reqContainer.innerHTML = '';
-
                 let hasRequests = false;
+
                 Object.keys(db.officialChatLogs || {}).forEach(uKey => {
+                    if (hiddenRequestIndices[uKey] === true) return;
+
                     const logs = db.officialChatLogs[uKey];
-                    const uName = db.users[uKey] ? db.users[uKey].name : uKey;
+                    const userLogs = logs.filter(l => l.sender === 'USER');
+                    if (userLogs.length > 0) {
+                        hasRequests = true;
+                        const reqCard = document.createElement('div');
+                        reqCard.style.cssText = 'background:#f8f9fa; border:1px solid #e0e0e0; padding:12px; border-radius:8px;';
+                        
+                        const userName = db.users[uKey] ? db.users[uKey].name : uKey;
+                        let logsHtml = '';
+                        userLogs.forEach(l => {
+                            if (l.type === 'stamp') {
+                                logsHtml += `<div style="margin-top:4px; font-size:13px;">スタンプ: <img src="${escapeHTML(l.text)}" style="width:40px; height:40px; vertical-align:middle;"></div>`;
+                            } else if (l.type === 'file' && l.fileData) {
+                                logsHtml += `<div style="margin-top:4px; font-size:13px;">ファイル: <a href="${l.fileData}" download="${l.fileName || 'file'}">${escapeHTML(l.fileName || 'ダウンロード')}</a></div>`;
+                            } else {
+                                logsHtml += `<div style="margin-top:4px; font-size:13px; color:#333;">・${escapeHTML(l.text)}</div>`;
+                            }
+                        });
 
-                    logs.forEach((l, idx) => {
-                        if (l.sender === 'USER') {
-                            hasRequests = true;
-                            const isHidden = hiddenRequestIndices[`${uKey}_${idx}`];
-                            if (isHidden) return;
-
-                            const item = document.createElement('div');
-                            item.style.cssText = 'background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:8px;';
-                            item.innerHTML = `
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                    <strong>👤 ${escapeHTML(uName)} (${uKey})</strong>
-                                    <span style="font-size:11px; color:#6b7280;">${new Date(l.timestamp).toLocaleString()}</span>
+                        reqCard.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ddd; padding-bottom:6px; margin-bottom:8px;">
+                                <strong>👤 ${escapeHTML(userName)} (${uKey})</strong>
+                                <div>
+                                    <button class="menu-btn btn-success reply-btn" style="width:auto; padding:2px 8px; font-size:11px; margin:0; display:inline-block;">返信</button>
+                                    <button class="menu-btn btn-danger hide-req-btn" style="width:auto; padding:2px 8px; font-size:11px; margin:0; display:inline-block;">非表示</button>
                                 </div>
-                                <div style="font-size:14px; background:#fff; padding:8px; border-radius:6px; border:1px solid #eee; margin-bottom:8px;">
-                                    ${l.type === 'stamp' ? `<img src="${l.text}" style="width:80px; height:80px; object-fit:cover;">` : escapeHTML(l.text)}
-                                </div>
-                                <div style="display:flex; gap:8px;">
-                                    <button class="menu-btn btn-success reply-btn" style="width:auto; padding:4px 10px; font-size:12px; margin:0;">💬 返事をする</button>
-                                    <button class="menu-btn btn-danger hide-btn" style="width:auto; padding:4px 10px; font-size:12px; margin:0;">非表示</button>
-                                </div>
-                            `;
+                            </div>
+                            ${logsHtml}
+                        `;
 
-                            item.querySelector('.reply-btn').onclick = () => {
-                                selectedDirectUser = uKey;
-                                document.getElementById('direct-msg-target-label').innerText = `宛先: ${uName} 様`;
-                                document.getElementById('direct-msg-text').value = '';
-                                showModal('dev-direct-msg-modal');
-                            };
+                        reqCard.querySelector('.reply-btn').onclick = () => {
+                            selectedDirectUser = uKey;
+                            document.getElementById('direct-msg-target-label').innerText = `宛先: ${userName} (${uKey})`;
+                            document.getElementById('direct-msg-text').value = '';
+                            showModal('dev-direct-msg-modal');
+                        };
 
-                            item.querySelector('.hide-btn').onclick = () => {
-                                hiddenRequestIndices[`${uKey}_${idx}`] = true;
-                                renderDevPanel();
-                            };
+                        reqCard.querySelector('.hide-req-btn').onclick = () => {
+                            hiddenRequestIndices[uKey] = true;
+                            renderDevPanel();
+                        };
 
-                            reqContainer.appendChild(item);
-                        }
-                    });
+                        reqContainer.appendChild(reqCard);
+                    }
                 });
 
                 if (!hasRequests) {
-                    reqContainer.innerHTML = '<div style="color:#888; padding:10px;">届いている要望はありません。</div>';
+                    reqContainer.innerHTML = '<div style="color:#888; text-align:center; padding:10px;">現在ユーザーからの未返信要望はありません。</div>';
                 }
 
-                // 5. スタンプ全件管理
-                const devStampsGrid = document.getElementById('dev-stamps-grid');
-                devStampsGrid.innerHTML = '';
+                // スタンプ管理（全件管理）
+                const stampsGrid = document.getElementById('dev-stamps-grid');
+                stampsGrid.innerHTML = '';
                 if (db.stamps.length === 0) {
-                    devStampsGrid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center;">出品されたスタンプはありません。</div>';
+                    stampsGrid.innerHTML = '<div style="grid-column: 1/-1; color:#888; text-align:center;">現在出品されているスタンプはありません。</div>';
                 } else {
                     db.stamps.forEach(s => {
-                        const sellerName = s.showSeller ? (db.users[s.seller] ? db.users[s.seller].name : '不明') : '匿名';
+                        const sellerName = s.showSeller ? (db.users[s.seller] ? db.users[s.seller].name : '不明') : '匿名出品者';
+                        const itemType = s.itemType || 'stamp';
+
+                        let mediaHtml = '';
+                        if (s.img) {
+                            mediaHtml = `<img src="${escapeHTML(s.img)}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">`;
+                        } else if (s.content) {
+                            mediaHtml = `<div style="font-size:24px; height:60px; display:flex; align-items:center; justify-content:center;">${escapeHTML(s.content)}</div>`;
+                        }
+
                         const card = document.createElement('div');
-                        card.style.cssText = 'border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; background:#fff;';
+                        card.style.cssText = 'border:1px solid #ddd; padding:8px; border-radius:6px; text-align:center; background:#f9fafb;';
                         card.innerHTML = `
-                            ${s.img ? `<img src="${escapeHTML(s.img)}" style="width:70px; height:70px; object-fit:cover;">` : `<div style="font-size:28px; height:70px; display:flex; align-items:center; justify-content:center;">${escapeHTML(s.content)}</div>`}
+                            ${mediaHtml}
                             <div style="font-weight:bold; font-size:12px; margin-top:4px;">${escapeHTML(s.title)}</div>
-                            <div style="font-size:10px; color:#666;">出品者: ${escapeHTML(sellerName)}</div>
-                            <button class="menu-btn btn-danger dev-del-btn" style="margin-top:6px; padding:4px; font-size:11px;">🗑️ 削除</button>
+                            <div style="font-size:10px; color:#4f46e5; font-weight:bold;">${itemType === 'reaction' ? '【リアクション】' : '【スタンプ】'}</div>
+                            <div style="font-size:10px; color:#666;">出品: ${escapeHTML(sellerName)} (${s.price}🪙)</div>
+                            <button class="menu-btn btn-danger dev-del-stamp-btn" style="margin-top:6px; padding:2px 6px; font-size:11px;">強制削除</button>
                         `;
-                        card.querySelector('.dev-del-btn').onclick = () => deleteStamp(s.id);
-                        devStampsGrid.appendChild(card);
+
+                        card.querySelector('.dev-del-stamp-btn').onclick = () => deleteStamp(s.id);
+                        stampsGrid.appendChild(card);
                     });
                 }
             }
 
-            // -------------------------------------------------------------
-            // イベントリスナー登録
-            // -------------------------------------------------------------
-            document.getElementById('btn-open-shop').onclick = () => switchPage('stamp-shop-view');
-            document.getElementById('btn-open-collection').onclick = () => switchPage('stalia-collection-view');
-            document.getElementById('btn-open-add-friend').onclick = () => showModal('add-friend-modal');
-            document.getElementById('btn-open-create-group').onclick = () => showModal('create-group-modal');
-            document.getElementById('btn-open-settings').onclick = () => showModal('account-settings-modal');
-            document.getElementById('btn-close-official').onclick = () => switchPage('home-view');
-            document.getElementById('btn-close-keep').onclick = () => switchPage('home-view');
+            // イベントバインディング
+            document.getElementById('dev-mode-btn').onclick = () => {
+                if (isDevMode) {
+                    switchPage('developer-view');
+                } else {
+                    showModal('dev-auth-modal');
+                }
+            };
 
+            document.getElementById('btn-submit-dev-auth').onclick = () => {
+                const user = document.getElementById('dev-auth-username').value.trim();
+                const pass = document.getElementById('dev-auth-password').value.trim();
+                if (user === 'YM' && pass === 'yamanesaiki') {
+                    isDevMode = true;
+                    hideModal('dev-auth-modal');
+                    switchPage('developer-view');
+                    document.getElementById('dev-auth-username').value = '';
+                    document.getElementById('dev-auth-password').value = '';
+                } else {
+                    alert('ユーザーネームまたはパスワードが正しくありません。');
+                }
+            };
+
+            document.getElementById('btn-exit-dev').onclick = () => {
+                switchPage('home-view');
+            };
+
+            // タブ切り替え処理（開発者パネル）
+            document.querySelectorAll('.dev-tab-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('.dev-tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.dev-tab-content').forEach(c => c.classList.add('hidden'));
+                    btn.classList.add('active');
+                    const tabId = btn.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.remove('hidden');
+                };
+            });
+
+            // スタンプショップ分類タブ切替処理
             document.getElementById('btn-shop-tab-stamp').onclick = () => {
                 currentShopTab = 'stamp';
                 document.getElementById('btn-shop-tab-stamp').classList.add('active');
@@ -2465,160 +2518,53 @@
                 renderStamps();
             };
 
-            // モーダル一括削除ボタン
-            document.querySelectorAll('.closeModalBtn').forEach(btn => {
-                btn.onclick = (e) => {
-                    const modal = e.target.closest('.modal');
-                    if (modal) modal.classList.add('hidden');
+            // アナウンス更新
+            const announceTextarea = document.getElementById('dev-announcement-text');
+            if (announceTextarea) {
+                announceTextarea.oninput = () => {
+                    const charCountEl = document.getElementById('announcement-char-count');
+                    if (charCountEl) charCountEl.innerText = `${announceTextarea.value.length} / 1000 文字`;
                 };
-            });
+            }
 
-            document.getElementById('btn-close-announcement-popup').onclick = () => {
-                localStorage.setItem('YM_DISMISSED_ANNOUNCEMENT', db.systemAnnouncement || '');
-                hideModal('announcement-popup-modal');
-            };
-
-            // 設定保存
-            document.getElementById('btn-save-settings').onclick = async () => {
-                const name = document.getElementById('setting-username').value.trim();
-                const iconUrl = document.getElementById('setting-icon-url').value.trim();
-                const iconFile = document.getElementById('setting-icon-file').files[0];
-
-                const tabTitle = document.getElementById('setting-tab-title').value.trim();
-                const tabIconUrl = document.getElementById('setting-tab-icon').value.trim();
-                const tabIconFile = document.getElementById('setting-tab-icon-file').files[0];
-
-                const customBg = document.getElementById('setting-chat-bg').value;
-                const customBgImgUrl = document.getElementById('setting-chat-bg-img').value.trim();
-                const customBgImgFile = document.getElementById('setting-chat-bg-file').files[0];
-
-                const uObj = db.users[activeUserId];
-                if (name) uObj.name = name;
-                if (tabTitle) uObj.tabTitle = tabTitle;
-                uObj.chatBg = customBg;
-
-                if (iconFile) {
-                    const compressed = await compressImageFile(iconFile, 120, 0.8);
-                    if (compressed) uObj.icon = compressed;
-                } else if (iconUrl) {
-                    uObj.icon = iconUrl;
-                }
-
-                if (tabIconFile) {
-                    const compressedTab = await compressImageFile(tabIconFile, 64, 0.8);
-                    if (compressedTab) uObj.tabIcon = compressedTab;
-                } else if (tabIconUrl) {
-                    uObj.tabIcon = tabIconUrl;
-                }
-
-                if (customBgImgFile) {
-                    const compressedBg = await compressImageFile(customBgImgFile, 800, 0.7);
-                    if (compressedBg) uObj.chatBgImg = compressedBg;
-                } else {
-                    uObj.chatBgImg = customBgImgUrl;
-                }
-
+            document.getElementById('btn-save-announcement').onclick = () => {
+                const text = document.getElementById('dev-announcement-text').value;
+                const style = document.getElementById('dev-announcement-style').value;
+                db.systemAnnouncement = text;
+                db.systemAnnouncementStyle = style;
                 saveData();
+
+                localStorage.removeItem('YM_DISMISSED_ANNOUNCEMENT');
+
+                broadcastData({
+                    type: 'UPDATE_ANNOUNCEMENT',
+                    text: text,
+                    style: style
+                });
+
                 renderApp();
-                hideModal('account-settings-modal');
-                alert('設定を保存しました。');
+                alert('全体アナウンスを一斉配信・更新しました！');
             };
 
-            document.getElementById('btn-clear-bg-img').onclick = () => {
-                document.getElementById('setting-chat-bg-img').value = '';
-                document.getElementById('setting-chat-bg-file').value = '';
-                db.users[activeUserId].chatBgImg = '';
-                saveData();
-                renderApp();
-                alert('背景画像をクリアしました。');
-            };
-
-            // スタンプ出品処理
-            document.getElementById('stamp-item-type').onchange = (e) => {
-                const type = e.target.value;
-                if (type === 'reaction') {
-                    document.getElementById('lbl-stamp-title').innerText = 'リアクション名';
-                    document.getElementById('stamp-img-input-group').classList.add('hidden');
-                    document.getElementById('reaction-text-input-group').classList.remove('hidden');
-                } else {
-                    document.getElementById('lbl-stamp-title').innerText = 'スタンプ名';
-                    document.getElementById('stamp-img-input-group').classList.remove('hidden');
-                    document.getElementById('reaction-text-input-group').classList.add('hidden');
-                }
-            };
-
-            document.getElementById('btn-open-stamp-create').onclick = () => showModal('stamp-create-modal');
-            document.getElementById('btn-publish-stamp').onclick = async () => {
-                const itemType = document.getElementById('stamp-item-type').value;
-                const title = document.getElementById('stamp-title').value.trim();
-                const price = parseInt(document.getElementById('stamp-price').value) || 0;
-                const showSeller = document.getElementById('stamp-show-seller').checked;
-
-                if (!title) {
-                    alert('タイトルを入力してください。');
-                    return;
-                }
-
-                let imgData = null;
-                let reactionText = null;
-
-                if (itemType === 'stamp') {
-                    const file = document.getElementById('stamp-file-input').files[0];
-                    const url = document.getElementById('stamp-img-url').value.trim();
-
-                    if (file) {
-                        imgData = await compressImageFile(file, 200, 0.8);
-                    } else if (url) {
-                        imgData = url;
+            const closeAnnounceBtn = document.getElementById('btn-close-announcement-popup');
+            if (closeAnnounceBtn) {
+                closeAnnounceBtn.onclick = () => {
+                    if (db.systemAnnouncement) {
+                        localStorage.setItem('YM_DISMISSED_ANNOUNCEMENT', db.systemAnnouncement);
                     }
-
-                    if (!imgData) {
-                        alert('スタンプ画像を選択またはURLを入力してください。');
-                        return;
-                    }
-                } else {
-                    reactionText = document.getElementById('reaction-emoji-text').value.trim();
-                    if (!reactionText) {
-                        alert('リアクション文字・絵文字を入力してください。');
-                        return;
-                    }
-                }
-
-                const newStamp = {
-                    id: 'stamp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-                    itemType: itemType,
-                    title: title,
-                    img: imgData,
-                    content: reactionText,
-                    price: price,
-                    seller: activeUserId,
-                    showSeller: showSeller
+                    hideModal('announcement-popup-modal');
                 };
+            }
 
-                db.stamps.push(newStamp);
-
-                // 出品者本人のコレクションへ追加
-                const uObj = db.users[activeUserId];
-                if (itemType === 'reaction') {
-                    if (!uObj.myReactions) uObj.myReactions = [];
-                    if (!uObj.myReactions.includes(reactionText)) uObj.myReactions.push(reactionText);
-                } else {
-                    if (!uObj.myStamps) uObj.myStamps = [];
-                    if (!uObj.myStamps.includes(imgData)) uObj.myStamps.push(imgData);
-                }
-
-                saveData();
-                renderStamps();
-                hideModal('stamp-create-modal');
-                alert('出品が完了しました！');
-            };
-
-            // メッセージ送信ボタン＆イベント
+            // チャット送信バインド
             document.getElementById('btn-chat-send').onclick = () => sendMessage('text');
-            document.getElementById('chat-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage('text'); };
+            document.getElementById('chat-input').onkeypress = (e) => {
+                if (e.key === 'Enter') sendMessage('text');
+            };
 
             document.getElementById('btn-official-send').onclick = () => {
-                const text = document.getElementById('official-chat-input').value.trim();
+                const input = document.getElementById('official-chat-input');
+                const text = input.value.trim();
                 if (!text) return;
 
                 if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
@@ -2629,299 +2575,51 @@
                     type: 'text',
                     timestamp: Date.now()
                 };
-
                 db.officialChatLogs[activeUserId].push(logObj);
-                document.getElementById('official-chat-input').value = '';
+                input.value = '';
                 saveData();
                 broadcastData({ type: 'OFFICIAL_CHAT', userKey: activeUserId, log: logObj });
                 renderOfficialChat();
             };
 
+            document.getElementById('official-chat-input').onkeypress = (e) => {
+                if (e.key === 'Enter') document.getElementById('btn-official-send').click();
+            };
+
+            document.getElementById('btn-close-official').onclick = () => switchPage('home-view');
+
+            // Keepメモ送信バインド
             document.getElementById('btn-keep-send').onclick = () => sendKeepMessage('text');
-            document.getElementById('keep-chat-input').onkeydown = (e) => { if (e.key === 'Enter') sendKeepMessage('text'); };
-
-            // スタンプ送信モーダル呼び出し
-            document.getElementById('btn-chat-stamp').onclick = () => {
-                currentStampTarget = 'friend';
-                showModal('select-stamp-modal');
+            document.getElementById('keep-chat-input').onkeypress = (e) => {
+                if (e.key === 'Enter') sendKeepMessage('text');
             };
-            document.getElementById('btn-official-stamp').onclick = () => {
-                currentStampTarget = 'official';
-                showModal('select-stamp-modal');
-            };
-            document.getElementById('btn-keep-stamp').onclick = () => {
-                currentStampTarget = 'keep';
-                showModal('select-stamp-modal');
-            };
+            document.getElementById('btn-close-keep').onclick = () => switchPage('home-view');
 
-            // 通話系ボタン
-            document.getElementById('btn-chat-audio-call').onclick = () => startCallToPeer(activeChatTarget);
-            document.getElementById('btn-start-call').onclick = () => startCallToPeer(activeChatTarget);
-            document.getElementById('btn-end-call').onclick = () => stopAllCalls();
-            document.getElementById('btn-bar-end-call').onclick = () => stopAllCalls();
-            document.getElementById('btn-chat-camera-call').onclick = () => startVideoCall(activeChatTarget);
-            document.getElementById('btn-end-video-call').onclick = () => stopVideoCall();
-            document.getElementById('btn-toggle-screen-share').onclick = () => toggleScreenShare();
+            // 開発者返信処理
+            document.getElementById('btn-send-direct-msg').onclick = () => {
+                if (!selectedDirectUser) return;
+                const text = document.getElementById('direct-msg-text').value.trim();
+                if (!text) return;
 
-            // ファイル送信系
-            document.getElementById('btn-chat-file').onclick = () => document.getElementById('chat-file-input').click();
-            document.getElementById('chat-file-input').onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const fileData = await readFileAsDataURL(file);
-                sendMessage('file', file.name, { name: file.name, data: fileData });
-                e.target.value = '';
-            };
-
-            document.getElementById('btn-official-file').onclick = () => document.getElementById('official-file-input').click();
-            document.getElementById('official-file-input').onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const fileData = await readFileAsDataURL(file);
-                
-                if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
+                if (!db.officialChatLogs[selectedDirectUser]) db.officialChatLogs[selectedDirectUser] = [];
                 const logObj = {
-                    sender: 'USER',
-                    userName: db.users[activeUserId].name,
-                    text: file.name,
-                    type: 'file',
-                    fileName: file.name,
-                    fileData: fileData,
+                    sender: 'DEV',
+                    userName: '📢 アップグレード (公式)',
+                    text: text,
+                    type: 'text',
                     timestamp: Date.now()
                 };
-                db.officialChatLogs[activeUserId].push(logObj);
-                saveData();
-                broadcastData({ type: 'OFFICIAL_CHAT', userKey: activeUserId, log: logObj });
-                renderOfficialChat();
-                e.target.value = '';
-            };
-
-            document.getElementById('btn-keep-file').onclick = () => document.getElementById('keep-file-input').click();
-            document.getElementById('keep-file-input').onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const fileData = await readFileAsDataURL(file);
-                sendKeepMessage('file', file.name, { name: file.name, data: fileData });
-                e.target.value = '';
-            };
-
-            // ボイスメッセージ録音モーダル開く
-            document.getElementById('btn-chat-voice-msg').onclick = () => {
-                currentStampTarget = 'friend';
-                showModal('voice-rec-modal');
-            };
-            document.getElementById('btn-keep-voice-msg').onclick = () => {
-                currentStampTarget = 'keep';
-                showModal('voice-rec-modal');
-            };
-
-            document.getElementById('btn-voice-start').onclick = () => startVoiceRecording();
-            document.getElementById('btn-voice-stop').onclick = () => stopVoiceRecording();
-            document.getElementById('btn-voice-send').onclick = () => sendVoiceMessage();
-
-            // P2P 友達追加・接続
-            document.getElementById('btn-connect-direct').onclick = () => {
-                const remoteId = document.getElementById('remote-peer-id-input').value.trim();
-                if (!remoteId) return;
-                if (!db.friends[activeUserId]) db.friends[activeUserId] = [];
-                if (!db.friends[activeUserId].includes(remoteId)) {
-                    db.friends[activeUserId].push(remoteId);
-                    saveData();
-                }
-                connectToRemotePeer(remoteId);
-                hideModal('add-friend-modal');
-                renderApp();
-            };
-
-            document.getElementById('btn-set-secret').onclick = () => {
-                const word = document.getElementById('secret-word-input').value.trim();
-                db.users[activeUserId].secretWord = word;
-                saveData();
-                alert('合言葉を設定・更新しました。');
-            };
-
-            document.getElementById('btn-search-secret').onclick = () => {
-                const word = document.getElementById('secret-word-input').value.trim();
-                const listEl = document.getElementById('found-friends-list');
-                listEl.innerHTML = '';
-
-                if (!word) {
-                    alert('合言葉を入力してください。');
-                    return;
-                }
-
-                let count = 0;
-                Object.keys(db.users).forEach(uKey => {
-                    if (uKey !== activeUserId && db.users[uKey].secretWord === word) {
-                        count++;
-                        const u = db.users[uKey];
-                        const div = document.createElement('div');
-                        div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #eee;';
-                        div.innerHTML = `<span><strong>${escapeHTML(u.name)}</strong> (${uKey})</span>`;
-                        const addBtn = document.createElement('button');
-                        addBtn.className = 'menu-btn btn-success';
-                        addBtn.style.cssText = 'width:auto; padding:4px 8px; font-size:12px; margin:0;';
-                        addBtn.innerText = '追加';
-                        addBtn.onclick = () => {
-                            if (!db.friends[activeUserId]) db.friends[activeUserId] = [];
-                            if (!db.friends[activeUserId].includes(uKey)) {
-                                db.friends[activeUserId].push(uKey);
-                                saveData();
-                            }
-                            connectToRemotePeer(uKey);
-                            renderApp();
-                            alert(`${u.name} を友達追加しました！`);
-                        };
-                        div.appendChild(addBtn);
-                        listEl.appendChild(div);
-                    }
-                });
-
-                if (count === 0) {
-                    listEl.innerHTML = '<div style="color:#888; font-size:12px;">同じ合言葉を設定しているユーザーは見つかりませんでした。</div>';
-                }
-            };
-
-            // グループ作成・管理
-            document.getElementById('btn-submit-create-group').onclick = () => {
-                const gName = document.getElementById('create-group-name').value.trim();
-                if (!gName) {
-                    alert('グループ名を入力してください。');
-                    return;
-                }
-
-                const gId = 'group_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-                const selectedMembers = [activeUserId];
-
-                document.querySelectorAll('#create-group-members-list input[type="checkbox"]:checked').forEach(cb => {
-                    selectedMembers.push(cb.value);
-                });
-
-                const groupObj = {
-                    id: gId,
-                    name: gName,
-                    members: selectedMembers,
-                    createdBy: activeUserId
-                };
-
-                db.groups[gId] = groupObj;
+                db.officialChatLogs[selectedDirectUser].push(logObj);
                 saveData();
 
-                selectedMembers.forEach(memId => {
-                    if (memId !== activeUserId) {
-                        connectToRemotePeer(memId);
-                        if (peerConnections[memId] && peerConnections[memId].open) {
-                            peerConnections[memId].send({ type: 'SYNC_GROUP_INFO', group: groupObj });
-                        }
-                    }
-                });
+                broadcastData({ type: 'OFFICIAL_CHAT', userKey: selectedDirectUser, log: logObj });
 
-                hideModal('create-group-modal');
-                renderApp();
-                openGroupChat(gId);
+                hideModal('dev-direct-msg-modal');
+                renderDevPanel();
+                alert('公式アカウントとして返信を送信しました。');
             };
 
-            document.getElementById('btn-manage-group-modal').onclick = () => {
-                const grp = db.groups[activeChatTarget];
-                if (!grp) return;
-
-                document.getElementById('manage-group-id').value = grp.id;
-                const currentEl = document.getElementById('manage-group-members-current');
-                currentEl.innerHTML = grp.members.map(mId => {
-                    const name = db.users[mId] ? db.users[mId].name : mId;
-                    return `<div>• ${escapeHTML(name)}</div>`;
-                }).join('');
-
-                const friendsEl = document.getElementById('manage-group-friends-list');
-                friendsEl.innerHTML = '';
-                const myFriends = db.friends[activeUserId] || [];
-
-                myFriends.forEach(fId => {
-                    if (!grp.members.includes(fId)) {
-                        const fName = db.users[fId] ? db.users[fId].name : fId;
-                        const div = document.createElement('div');
-                        div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #eee;';
-                        div.innerHTML = `<span>${escapeHTML(fName)}</span>`;
-                        const inviteBtn = document.createElement('button');
-                        inviteBtn.className = 'menu-btn btn-success';
-                        inviteBtn.style.cssText = 'width:auto; padding:2px 8px; font-size:11px; margin:0;';
-                        inviteBtn.innerText = '招待';
-                        inviteBtn.onclick = () => {
-                            grp.members.push(fId);
-                            saveData();
-                            connectToRemotePeer(fId);
-                            broadcastData({ type: 'SYNC_GROUP_INFO', group: grp });
-                            document.getElementById('btn-manage-group-modal').click();
-                            renderChat();
-                        };
-                        div.appendChild(inviteBtn);
-                        friendsEl.appendChild(div);
-                    }
-                });
-
-                showModal('manage-group-modal');
-            };
-
-            // モーダルオープン時の友達動的リスト構築 (グループ作成用)
-            document.getElementById('btn-open-create-group').addEventListener('click', () => {
-                const listEl = document.getElementById('create-group-members-list');
-                listEl.innerHTML = '';
-                const myFriends = db.friends[activeUserId] || [];
-
-                if (myFriends.length === 0) {
-                    listEl.innerHTML = '<div style="font-size:12px; color:#888;">招待できる友達がいません</div>';
-                    return;
-                }
-
-                myFriends.forEach(fId => {
-                    const fName = db.users[fId] ? db.users[fId].name : fId;
-                    const div = document.createElement('div');
-                    div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:4px 0;';
-                    div.innerHTML = `
-                        <input type="checkbox" value="${fId}" id="cb_group_${fId}" style="width:auto; margin:0;">
-                        <label for="cb_group_${fId}" style="margin:0; text-transform:none; font-weight:normal; cursor:pointer;">${escapeHTML(fName)}</label>
-                    `;
-                    listEl.appendChild(div);
-                });
-            });
-
-            // 開発者モード認証
-            document.getElementById('dev-mode-btn').onclick = () => {
-                if (isDevMode) {
-                    switchPage('developer-view');
-                } else {
-                    showModal('dev-auth-modal');
-                }
-            };
-
-            document.getElementById('btn-submit-dev-auth').onclick = () => {
-                const u = document.getElementById('dev-auth-username').value;
-                const p = document.getElementById('dev-auth-password').value;
-
-                if (u === 'ym' && p === '2026') {
-                    isDevMode = true;
-                    hideModal('dev-auth-modal');
-                    switchPage('developer-view');
-                } else {
-                    alert('認証情報が正しくありません。');
-                }
-            };
-
-            document.getElementById('btn-exit-dev').onclick = () => switchPage('home-view');
-
-            // 開発者パネルタブ切り替え
-            document.querySelectorAll('.dev-tab-btn').forEach(btn => {
-                btn.onclick = () => {
-                    document.querySelectorAll('.dev-tab-btn').forEach(b => b.classList.remove('active'));
-                    document.querySelectorAll('.dev-tab-content').forEach(c => c.classList.add('hidden'));
-
-                    btn.classList.add('active');
-                    const tabId = btn.getAttribute('data-tab');
-                    document.getElementById(tabId).classList.remove('hidden');
-                };
-            });
-
-            // 配布機能
+            // 配布実行
             document.getElementById('distribute-type').onchange = (e) => {
                 if (e.target.value === 'coin') {
                     document.getElementById('dist-coin-area').classList.remove('hidden');
@@ -2936,133 +2634,437 @@
                 const target = document.getElementById('distribute-target').value;
                 const type = document.getElementById('distribute-type').value;
 
+                const targetKeys = target === 'ALL' ? Object.keys(db.users) : [target];
+
                 if (type === 'coin') {
-                    const amount = parseInt(document.getElementById('dist-coin-amount').value) || 0;
-                    if (target === 'ALL') {
-                        Object.keys(db.users).forEach(uKey => db.users[uKey].coins += amount);
-                    } else if (db.users[target]) {
-                        db.users[target].coins += amount;
-                    }
-                    alert('コインの配布を実行しました！');
+                    const amount = parseInt(document.getElementById('dist-coin-amount').value, 10) || 0;
+                    targetKeys.forEach(k => {
+                        if (db.users[k]) db.users[k].coins = (db.users[k].coins || 0) + amount;
+                    });
+                    alert(`コイン (${amount}) を配布しました。`);
                 } else {
-                    const sName = document.getElementById('dist-stamp-name').value.trim();
-                    const sFile = document.getElementById('dist-stamp-file').files[0];
-                    const sUrl = document.getElementById('dist-stamp-url').value.trim();
+                    const name = document.getElementById('dist-stamp-name').value.trim();
+                    const fileInput = document.getElementById('dist-stamp-file');
+                    let imgUrl = document.getElementById('dist-stamp-url').value.trim();
 
-                    if (!sName) {
-                        alert('スタンプ名を入力してください。');
+                    if (fileInput.files.length > 0) {
+                        imgUrl = await compressImageFile(fileInput.files[0], 200, 0.7);
+                    }
+
+                    if (!name || !imgUrl) {
+                        alert('スタンプ名と画像（ファイルまたはURL）を入力してください。');
                         return;
                     }
 
-                    let imgData = null;
-                    if (sFile) {
-                        imgData = await compressImageFile(sFile, 200, 0.8);
-                    } else if (sUrl) {
-                        imgData = sUrl;
-                    }
-
-                    if (!imgData) {
-                        alert('スタンプ画像を指定してください。');
-                        return;
-                    }
-
-                    const newStamp = {
-                        id: 'stamp_dist_' + Date.now(),
-                        itemType: 'stamp',
-                        title: sName,
-                        img: imgData,
-                        price: 0,
-                        seller: 'DEV',
-                        showSeller: true
-                    };
-
-                    db.stamps.push(newStamp);
-
-                    if (target === 'ALL') {
-                        Object.keys(db.users).forEach(uKey => {
-                            if (!db.users[uKey].myStamps) db.users[uKey].myStamps = [];
-                            if (!db.users[uKey].myStamps.includes(imgData)) db.users[uKey].myStamps.push(imgData);
-                        });
-                    } else if (db.users[target]) {
-                        if (!db.users[target].myStamps) db.users[target].myStamps = [];
-                        if (!db.users[target].myStamps.includes(imgData)) db.users[target].myStamps.push(imgData);
-                    }
-                    alert('特別スタンプの配布を実行しました！');
+                    targetKeys.forEach(k => {
+                        if (db.users[k]) {
+                            if (!db.users[k].myStamps) db.users[k].myStamps = [];
+                            if (!db.users[k].myStamps.includes(imgUrl)) db.users[k].myStamps.push(imgUrl);
+                        }
+                    });
+                    alert(`特別スタンプ「${name}」を配布しました。`);
                 }
 
                 saveData();
+                broadcastData({ type: 'SYNC_DB_FULL', db: db });
+                renderApp();
                 renderDevPanel();
-                renderApp();
             };
 
-            // アナウンスリアルタイム文字数カウント
-            const announceTextarea = document.getElementById('dev-announcement-text');
-            if (announceTextarea) {
-                announceTextarea.addEventListener('input', (e) => {
-                    const countEl = document.getElementById('announcement-char-count');
-                    if (countEl) countEl.innerText = `${e.target.value.length} / 1000 文字`;
-                });
-            }
-
-            // 全体アナウンス送信
-            document.getElementById('btn-save-announcement').onclick = () => {
-                const text = document.getElementById('dev-announcement-text').value;
-                const style = document.getElementById('dev-announcement-style').value;
-
-                db.systemAnnouncement = text;
-                db.systemAnnouncementStyle = style;
-                saveData();
-
-                broadcastData({
-                    type: 'UPDATE_ANNOUNCEMENT',
-                    text: text,
-                    style: style
-                });
-
-                renderApp();
-                alert('全体アナウンスを更新し一斉送信しました！');
+            // スタンプ出品
+            document.getElementById('btn-open-stamp-create').onclick = () => showModal('stamp-create-modal');
+            
+            document.getElementById('stamp-item-type').onchange = (e) => {
+                const isReaction = (e.target.value === 'reaction');
+                if (isReaction) {
+                    document.getElementById('reaction-text-input-group').classList.remove('hidden');
+                } else {
+                    document.getElementById('reaction-text-input-group').classList.add('hidden');
+                }
             };
 
-            // 要望返信ダイレクトメッセージ送信
-            document.getElementById('btn-send-direct-msg').onclick = () => {
-                const text = document.getElementById('direct-msg-text').value.trim();
-                if (!text || !selectedDirectUser) return;
+            document.getElementById('btn-publish-stamp').onclick = async () => {
+                const itemType = document.getElementById('stamp-item-type').value;
+                const title = document.getElementById('stamp-title').value.trim();
+                const price = parseInt(document.getElementById('stamp-price').value, 10) || 0;
+                const showSeller = document.getElementById('stamp-show-seller').checked;
+                const fileInput = document.getElementById('stamp-file-input');
+                let imgUrl = document.getElementById('stamp-img-url').value.trim();
+                const reactionEmoji = document.getElementById('reaction-emoji-text').value.trim();
 
-                if (!db.officialChatLogs[selectedDirectUser]) db.officialChatLogs[selectedDirectUser] = [];
-                const logObj = {
-                    sender: 'DEV',
-                    userName: '開発チーム',
-                    text: text,
-                    type: 'text',
-                    timestamp: Date.now()
+                if (fileInput.files.length > 0) {
+                    imgUrl = await compressImageFile(fileInput.files[0], 150, 0.7);
+                }
+
+                if (!title) {
+                    alert('スタンプ名/リアクション名を入力してください。');
+                    return;
+                }
+
+                if (itemType === 'stamp' && !imgUrl) {
+                    alert('スタンプ画像をファイルまたはURLで指定してください。');
+                    return;
+                }
+
+                if (itemType === 'reaction' && !imgUrl && !reactionEmoji) {
+                    alert('リアクション用の画像またはテキスト/絵文字を入力してください。');
+                    return;
+                }
+
+                const newStamp = {
+                    id: 'stamp_' + Date.now(),
+                    itemType: itemType,
+                    title: title,
+                    img: imgUrl || null,
+                    content: reactionEmoji || null,
+                    price: price,
+                    seller: activeUserId,
+                    showSeller: showSeller
                 };
 
-                db.officialChatLogs[selectedDirectUser].push(logObj);
+                db.stamps.push(newStamp);
+
+                const uObj = db.users[activeUserId];
+                if (itemType === 'reaction') {
+                    if (!uObj.myReactions) uObj.myReactions = [];
+                    uObj.myReactions.push(imgUrl || reactionEmoji);
+                } else {
+                    if (!uObj.myStamps) uObj.myStamps = [];
+                    uObj.myStamps.push(imgUrl);
+                }
+
                 saveData();
+                hideModal('stamp-create-modal');
+                renderStamps();
+                renderApp();
+                if (isDevMode) renderDevPanel();
 
-                broadcastData({
-                    type: 'OFFICIAL_CHAT',
-                    userKey: selectedDirectUser,
-                    log: logObj
-                });
+                document.getElementById('stamp-title').value = '';
+                document.getElementById('stamp-img-url').value = '';
+                document.getElementById('stamp-file-input').value = '';
+                document.getElementById('reaction-emoji-text').value = '';
 
-                hideModal('dev-direct-msg-modal');
-                renderDevPanel();
-                alert('回答を送信しました。');
+                alert('出品が完了しました！');
             };
 
-            // タイマー・利用時間の記録 (毎秒)
+            // 設定保存
+            document.getElementById('btn-open-settings').onclick = () => showModal('account-settings-modal');
+            document.getElementById('btn-save-settings').onclick = async () => {
+                const name = document.getElementById('setting-username').value.trim();
+                let iconUrl = document.getElementById('setting-icon-url').value.trim();
+                const iconFile = document.getElementById('setting-icon-file').files[0];
+
+                const tabTitle = document.getElementById('setting-tab-title').value.trim();
+                let tabIconUrl = document.getElementById('setting-tab-icon').value.trim();
+                const tabIconFile = document.getElementById('setting-tab-icon-file').files[0];
+
+                const chatBg = document.getElementById('setting-chat-bg').value;
+                let chatBgImgUrl = document.getElementById('setting-chat-bg-img').value.trim();
+                const chatBgFile = document.getElementById('setting-chat-bg-file').files[0];
+
+                if (iconFile) {
+                    const compressed = await compressImageFile(iconFile, 100, 0.7);
+                    if (compressed) iconUrl = compressed;
+                }
+
+                if (tabIconFile) {
+                    const compressed = await compressImageFile(tabIconFile, 64, 0.7);
+                    if (compressed) tabIconUrl = compressed;
+                }
+
+                if (chatBgFile) {
+                    const compressed = await compressImageFile(chatBgFile, 800, 0.6);
+                    if (compressed) chatBgImgUrl = compressed;
+                }
+
+                if (name) db.users[activeUserId].name = name;
+                db.users[activeUserId].icon = iconUrl;
+                db.users[activeUserId].tabTitle = tabTitle || 'Y.M';
+                db.users[activeUserId].tabIcon = tabIconUrl;
+                db.users[activeUserId].chatBg = chatBg;
+                db.users[activeUserId].chatBgImg = chatBgImgUrl;
+
+                saveData();
+                hideModal('account-settings-modal');
+                renderApp();
+                broadcastData({ type: 'SYNC_USER_INFO', userKey: activeUserId, userData: db.users[activeUserId] });
+            };
+
+            document.getElementById('btn-clear-bg-img').onclick = () => {
+                document.getElementById('setting-chat-bg-img').value = '';
+                document.getElementById('setting-chat-bg-file').value = '';
+                db.users[activeUserId].chatBgImg = '';
+                saveData();
+                renderApp();
+            };
+
+            // 友達追加・接続ダイアログ
+            document.getElementById('btn-open-add-friend').onclick = () => showModal('add-friend-modal');
+            document.getElementById('btn-connect-direct').onclick = () => {
+                const remoteId = document.getElementById('remote-peer-id-input').value.trim();
+                if (remoteId) {
+                    if (!db.friends[activeUserId]) db.friends[activeUserId] = [];
+                    if (!db.friends[activeUserId].includes(remoteId)) db.friends[activeUserId].push(remoteId);
+                    saveData();
+                    connectToRemotePeer(remoteId);
+                    hideModal('add-friend-modal');
+                    renderApp();
+                }
+            };
+
+            document.getElementById('btn-set-secret').onclick = () => {
+                const word = document.getElementById('secret-word-input').value.trim();
+                db.users[activeUserId].secretWord = word;
+                saveData();
+                alert('合言葉を更新しました。');
+            };
+
+            document.getElementById('btn-search-secret').onclick = () => {
+                const word = document.getElementById('secret-word-input').value.trim();
+                if (!word) return;
+                const container = document.getElementById('found-friends-list');
+                container.innerHTML = '';
+                let count = 0;
+
+                Object.keys(db.users).forEach(uKey => {
+                    if (uKey !== activeUserId && db.users[uKey].secretWord === word) {
+                        count++;
+                        const div = document.createElement('div');
+                        div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px; background:#fff; border:1px solid #ccc; margin-top:4px; border-radius:4px;';
+                        div.innerHTML = `<span>${escapeHTML(db.users[uKey].name)} (${uKey})</span> <button class="menu-btn btn-success" style="width:auto; padding:2px 8px; font-size:12px; margin:0;">追加</button>`;
+                        div.querySelector('button').onclick = () => {
+                            if (!db.friends[activeUserId]) db.friends[activeUserId] = [];
+                            if (!db.friends[activeUserId].includes(uKey)) db.friends[activeUserId].push(uKey);
+                            saveData();
+                            connectToRemotePeer(uKey);
+                            renderApp();
+                            alert('追加しました！');
+                        };
+                        container.appendChild(div);
+                    }
+                });
+
+                if (count === 0) {
+                    container.innerHTML = '<div style="font-size:12px; color:#888;">一致する合言葉のユーザーは見つかりませんでした。</div>';
+                }
+            };
+
+            // グループ作成モーダル処理
+            document.getElementById('btn-open-create-group').onclick = () => {
+                const listEl = document.getElementById('create-group-members-list');
+                listEl.innerHTML = '';
+                const myFriends = db.friends[activeUserId] || [];
+                
+                if (myFriends.length === 0) {
+                    listEl.innerHTML = '<div style="font-size:12px; color:#888;">追加可能な友達がいません。</div>';
+                } else {
+                    myFriends.forEach(fKey => {
+                        const name = db.users[fKey] ? db.users[fKey].name : fKey;
+                        const item = document.createElement('div');
+                        item.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:4px;';
+                        item.innerHTML = `<input type="checkbox" value="${fKey}" style="width:auto; margin:0;"> <span>${escapeHTML(name)}</span>`;
+                        listEl.appendChild(item);
+                    });
+                }
+                showModal('create-group-modal');
+            };
+
+            document.getElementById('btn-submit-create-group').onclick = () => {
+                const groupName = document.getElementById('create-group-name').value.trim();
+                if (!groupName) {
+                    alert('グループ名を入力してください。');
+                    return;
+                }
+
+                const selectedMembers = [activeUserId];
+                const checkboxes = document.querySelectorAll('#create-group-members-list input[type="checkbox"]:checked');
+                checkboxes.forEach(cb => selectedMembers.push(cb.value));
+
+                const groupId = 'group_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+                const groupObj = {
+                    id: groupId,
+                    name: groupName,
+                    members: selectedMembers,
+                    createdBy: activeUserId
+                };
+
+                if (!db.groups) db.groups = {};
+                db.groups[groupId] = groupObj;
+                saveData();
+
+                selectedMembers.forEach(memId => {
+                    if (memId !== activeUserId) {
+                        connectToRemotePeer(memId);
+                        if (peerConnections[memId] && peerConnections[memId].open) {
+                            peerConnections[memId].send({ type: 'SYNC_GROUP_INFO', group: groupObj });
+                        }
+                    }
+                });
+
+                hideModal('create-group-modal');
+                document.getElementById('create-group-name').value = '';
+                renderApp();
+                openGroupChat(groupId);
+            };
+
+            // グループ管理・招待モーダル処理
+            document.getElementById('btn-manage-group-modal').onclick = () => {
+                if (!activeChatTarget || !db.groups[activeChatTarget]) return;
+                const grp = db.groups[activeChatTarget];
+                
+                document.getElementById('manage-group-id').value = grp.id;
+
+                const friendsListEl = document.getElementById('manage-group-friends-list');
+                friendsListEl.innerHTML = '';
+                const myFriends = db.friends[activeUserId] || [];
+                const nonMembers = myFriends.filter(f => !grp.members.includes(f));
+
+                if (nonMembers.length === 0) {
+                    friendsListEl.innerHTML = '<div style="font-size:12px; color:#888;">招待できる友達はいません。</div>';
+                } else {
+                    nonMembers.forEach(fKey => {
+                        const name = db.users[fKey] ? db.users[fKey].name : fKey;
+                        const item = document.createElement('div');
+                        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; background:#fff; padding:4px 8px; border-radius:4px; border:1px solid var(--border-color);';
+                        item.innerHTML = `<span>${escapeHTML(name)}</span> <button class="menu-btn btn-success" style="width:auto; padding:2px 8px; font-size:11px; margin:0;">招待</button>`;
+                        item.querySelector('button').onclick = () => {
+                            if (!grp.members.includes(fKey)) {
+                                grp.members.push(fKey);
+                                saveData();
+                                connectToRemotePeer(fKey);
+                                broadcastData({ type: 'SYNC_GROUP_INFO', group: grp });
+                                renderApp();
+                                document.getElementById('btn-manage-group-modal').click();
+                            }
+                        };
+                        friendsListEl.appendChild(item);
+                    });
+                }
+
+                const currentListEl = document.getElementById('manage-group-members-current');
+                currentListEl.innerHTML = '';
+                grp.members.forEach(memId => {
+                    const name = db.users[memId] ? db.users[memId].name : memId;
+                    const item = document.createElement('div');
+                    item.style.padding = '2px 0';
+                    item.innerText = `• ${name} ${memId === activeUserId ? '(あなた)' : ''}`;
+                    currentListEl.appendChild(item);
+                });
+
+                showModal('manage-group-modal');
+            };
+
+            // ナビゲーション
+            document.getElementById('btn-open-shop').onclick = () => switchPage('stamp-shop-view');
+            document.getElementById('btn-open-collection').onclick = () => switchPage('stalia-collection-view');
+
+            // スタンプモーダル表示バインド
+            document.getElementById('btn-chat-stamp').onclick = () => {
+                currentStampTarget = 'friend';
+                showModal('select-stamp-modal');
+            };
+            document.getElementById('btn-official-stamp').onclick = () => {
+                currentStampTarget = 'official';
+                showModal('select-stamp-modal');
+            };
+            document.getElementById('btn-keep-stamp').onclick = () => {
+                currentStampTarget = 'keep';
+                showModal('select-stamp-modal');
+            };
+
+            // ファイル送受信ハンドラー
+            document.getElementById('btn-chat-file').onclick = () => document.getElementById('chat-file-input').click();
+            document.getElementById('chat-file-input').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const fileData = await readFileAsDataURL(file);
+                    sendMessage('file', 'ファイル送信', { name: file.name, data: fileData });
+                    e.target.value = '';
+                }
+            };
+
+            document.getElementById('btn-official-file').onclick = () => document.getElementById('official-file-input').click();
+            document.getElementById('official-file-input').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const fileData = await readFileAsDataURL(file);
+                    if (!db.officialChatLogs[activeUserId]) db.officialChatLogs[activeUserId] = [];
+                    const logObj = {
+                        sender: 'USER',
+                        userName: db.users[activeUserId].name,
+                        text: 'ファイル送信',
+                        type: 'file',
+                        fileData: fileData,
+                        fileName: file.name,
+                        timestamp: Date.now()
+                    };
+                    db.officialChatLogs[activeUserId].push(logObj);
+                    saveData();
+                    broadcastData({ type: 'OFFICIAL_CHAT', userKey: activeUserId, log: logObj });
+                    renderOfficialChat();
+                    e.target.value = '';
+                }
+            };
+
+            document.getElementById('btn-keep-file').onclick = () => document.getElementById('keep-file-input').click();
+            document.getElementById('keep-file-input').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const fileData = await readFileAsDataURL(file);
+                    sendKeepMessage('file', 'ファイル保存', { name: file.name, data: fileData });
+                    e.target.value = '';
+                }
+            };
+
+            // ボイスメッセージモーダル処理
+            document.getElementById('btn-chat-voice-msg').onclick = () => {
+                currentStampTarget = 'friend';
+                showModal('voice-rec-modal');
+            };
+            document.getElementById('btn-keep-voice-msg').onclick = () => {
+                currentStampTarget = 'keep';
+                showModal('voice-rec-modal');
+            };
+
+            document.getElementById('btn-voice-start').onclick = startVoiceRecording;
+            document.getElementById('btn-voice-stop').onclick = stopVoiceRecording;
+            document.getElementById('btn-voice-send').onclick = sendVoiceMessage;
+
+            // 通話系バインド
+            document.getElementById('btn-chat-audio-call').onclick = () => {
+                if (activeChatTarget) startCallToPeer(activeChatTarget);
+            };
+            document.getElementById('btn-start-call').onclick = () => {
+                if (activeChatTarget) startCallToPeer(activeChatTarget);
+            };
+            document.getElementById('btn-end-call').onclick = stopAllCalls;
+            document.getElementById('btn-bar-end-call').onclick = stopAllCalls;
+
+            document.getElementById('btn-chat-camera-call').onclick = () => {
+                if (activeChatTarget) startVideoCall(activeChatTarget);
+            };
+            document.getElementById('btn-end-video-call').onclick = stopVideoCall;
+            document.getElementById('btn-toggle-screen-share').onclick = toggleScreenShare;
+
+            // モーダル閉じる通用クラス処理
+            document.querySelectorAll('.closeModalBtn').forEach(btn => {
+                btn.onclick = () => {
+                    const modal = btn.closest('.modal');
+                    if (modal) modal.classList.add('hidden');
+                };
+            });
+
+            // 使用時間の定期記録（10秒ごと）
             setInterval(() => {
                 if (db.users[activeUserId]) {
-                    db.users[activeUserId].usageTime = (db.users[activeUserId].usageTime || 0) + 1;
+                    db.users[activeUserId].usageTime = (db.users[activeUserId].usageTime || 0) + 10;
                     saveData();
                 }
-            }, 1000);
+            }, 10000);
 
-            // 初期化実行
+            // アプリケーション初期化
             initPeer();
             renderApp();
-            switchPage('home-view');
 
         })();
     </script>
